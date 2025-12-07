@@ -9,7 +9,6 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.stereotype.Service;
 
 import com.kompu.api.entity.user.model.UserAccountModel;
-import com.kompu.api.infrastructure.config.db.schema.UserRoleSchema.RoleEnum;
 import com.kompu.api.usecase.user.GetUserUseCase;
 
 @Service
@@ -25,11 +24,15 @@ public class MyUserDetailService implements UserDetailsService {
 	public UserDetails loadUserByUsername(String identity) {
 		UserAccountModel userAccount = getUserUseCase.findByUsername(identity);
 		String username = userAccount.getUsername();
-		String password = userAccount.getPassword();
-		RoleEnum role = userAccount.getRole().getRole();
+		String password = userAccount.getPasswordHash();
 
 		List<String> authorities = new ArrayList<>();
-		authorities.add("ROLE_" + role.name());
+		userAccount.getRoles().forEach(role -> authorities.add("ROLE_" + role.getName()));
+
+		if (authorities.isEmpty()) {
+			authorities.add("ROLE_USER");
+		}
+
 		return User
 				.withUsername(username)
 				.password(password)

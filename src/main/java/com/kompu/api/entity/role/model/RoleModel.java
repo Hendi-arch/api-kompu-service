@@ -1,4 +1,4 @@
-package com.kompu.api.entity.user.model;
+package com.kompu.api.entity.role.model;
 
 import java.time.LocalDateTime;
 import java.util.HashSet;
@@ -6,7 +6,7 @@ import java.util.Set;
 import java.util.UUID;
 
 import com.kompu.api.entity.AbstractEntity;
-import com.kompu.api.entity.role.model.RoleModel;
+import com.kompu.api.entity.permission.model.PermissionModel;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -19,41 +19,23 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @EqualsAndHashCode(callSuper = false)
-public class UserAccountModel extends AbstractEntity<UUID> {
+public class RoleModel extends AbstractEntity<UUID> {
 
     private UUID id;
 
     private UUID tenantId;
 
-    private String username;
+    private String name;
 
-    private String email;
-
-    private String passwordHash;
-
-    private String fullName;
-
-    private String phone;
-
-    private String avatarUrl;
-
-    private boolean isActive;
-
-    private boolean isEmailVerified;
+    private String description;
 
     private boolean isSystem;
 
     @Builder.Default
-    private Set<RoleModel> roles = new HashSet<>();
-
-    private String createdBy;
-
-    private String updatedBy;
+    private Set<PermissionModel> permissions = new HashSet<>();
 
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;
-
-    private LocalDateTime deletedAt;
 
 }

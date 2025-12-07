@@ -1,8 +1,8 @@
 package com.kompu.api.entity.user.gateway;
 
-import java.util.Optional;
-import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 import com.kompu.api.entity.user.exception.UserNotFoundException;
 import com.kompu.api.entity.user.model.UserAccountModel;
@@ -13,14 +13,16 @@ public interface UserGateway {
 
     UserAccountModel update(UserAccountModel userAccountModel);
 
-    void delete(Long id) throws UserNotFoundException;
+    void delete(UUID id) throws UserNotFoundException;
 
-    Optional<UserAccountModel> findById(Long id);
+    Optional<UserAccountModel> findById(UUID id);
 
     Optional<UserAccountModel> findByUsername(String username);
 
-    List<UserAccountModel> findAll();
+    Optional<UserAccountModel> findByEmail(String email);
 
-    boolean hasSufficientBalanceForTransaction(Long senderId, BigDecimal transactionAmount);
+    List<UserAccountModel> findByTenantId(UUID tenantId);
+
+    List<UserAccountModel> findAll();
 
 }

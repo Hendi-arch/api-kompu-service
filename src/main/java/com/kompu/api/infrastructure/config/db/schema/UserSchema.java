@@ -1,7 +1,9 @@
 package com.kompu.api.infrastructure.config.db.schema;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.UUID;
 
 import org.springframework.data.annotation.CreatedBy;
 import org.springframework.data.annotation.CreatedDate;
@@ -14,12 +16,13 @@ import com.kompu.api.entity.user.model.UserAccountModel;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EntityListeners;
-import jakarta.persistence.ForeignKey;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import lombok.AllArgsConstructor;
@@ -33,66 +36,120 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Entity
 @EntityListeners(AuditingEntityListener.class)
-@Table(name = "users", uniqueConstraints = @UniqueConstraint(columnNames = { "username" }))
+@Table(name = "users", schema = "app", uniqueConstraints = {
+                @UniqueConstraint(columnNames = { "tenant_id", "email" }),
+                @UniqueConstraint(columnNames = { "tenant_id", "username" })
+})
 public class UserSchema {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+        @Id
+        @GeneratedValue(strategy = GenerationType.UUID)
+        private UUID id;
 
-    @ManyToOne
-    @JoinColumn(name = "role_id", referencedColumnName = "id", foreignKey = @ForeignKey(name = "FK_role_id"), nullable = false)
-    private UserRoleSchema role;
+        @Column(name = "tenant_id")
+        private UUID tenantId;
 
-    @Column(nullable = false, length = 50)
-    private String username;
+        @Column(nullable = false, length = 100)
+        private String username;
 
-    @Column(nullable = false, length = 300)
-    private String password;
+        @Column(nullable = false, length = 255)
+        private String email;
 
-    @Column(precision = 15, scale = 2, nullable = false)
-    private BigDecimal balance;
+        @Column(name = "password_hash", length = 500)
+        private String passwordHash;
 
-    @CreatedBy
-    @Column(nullable = false)
-    private String createdBy;
+        @Column(name = "full_name", length = 255)
+        private String fullName;
 
-    @LastModifiedBy
-    @Column(nullable = false)
-    private String updatedBy;
+        @Column(length = 20)
+        private String phone;
 
-    @CreatedDate
-    @Column(nullable = false)
-    private LocalDateTime createdAt;
+        @Column(name = "avatar_url", length = 500)
+        private String avatarUrl;
 
-    @LastModifiedDate
-    @Column(nullable = false)
-    private LocalDateTime updatedAt;
+        @Column(name = "is_active", nullable = false)
+        private boolean isActive;
 
-    public UserSchema(UserAccountModel userAccountModel) {
-        this.id = userAccountModel.getId();
-        this.role = new UserRoleSchema(userAccountModel.getRole());
-        this.username = userAccountModel.getUsername();
-        this.password = userAccountModel.getPassword();
-        this.balance = userAccountModel.getBalance();
-        this.createdBy = userAccountModel.getCreatedBy();
-        this.updatedBy = userAccountModel.getUpdatedBy();
-        this.createdAt = userAccountModel.getCreatedAt();
-        this.updatedAt = userAccountModel.getUpdatedAt();
-    }
+        @Column(name = "is_email_verified", nullable = false)
+        private boolean isEmailVerified;
 
-    public UserAccountModel toUserAccountModel() {
-        UserAccountModel userAccountModel = new UserAccountModel(
-                this.username,
-                this.password,
-                this.balance,
-                this.role.toUserRoleModel());
-        userAccountModel.setId(this.id);
-        userAccountModel.setCreatedAt(this.createdAt);
-        userAccountModel.setUpdatedAt(this.updatedAt);
-        userAccountModel.setCreatedBy(this.createdBy);
-        userAccountModel.setUpdatedBy(this.updatedBy);
-        return userAccountModel;
-    }
+        @Column(name = "is_system", nullable = false)
+        private boolean isSystem;
+
+        @ManyToMany(fetch = FetchType.LAZY)
+        @JoinTable(name = "user_roles", schema = "app", joinColumns = @JoinColumn(name = "user_id", referencedColumnName = "id"), inverseJoinColumns = @JoinColumn(name = "role_id", referencedColumnName = "id"))
+        @Builder.Default
+        private Set<RoleSchema> roles = new HashSet<>();
+
+        @CreatedBy
+        @Column(name = "created_by", length = 100)
+        private String createdBy;
+
+        @LastModifiedBy
+        @Column(name = "updated_by", length = 100)
+        private String updatedBy;
+
+        @CreatedDate
+        @Column(name = "created_at", nullable = false)
+        private LocalDateTime createdAt;
+
+        @LastModifiedDate
+        @Column(name = "updated_at", nullable = false)
+        private LocalDateTime updatedAt;
+
+        @Column(name = "deleted_at")
+        private LocalDateTime deletedAt;
+
+        public UserSchema(UserAccountModel userAccountModel) {
+                this.id = userAccountModel.getId();
+                this.tenantId = userAccountModel.getTenantId();
+                this.username = userAccountModel.getUsername();
+                this.email = userAccountModel.getEmail();
+                this.passwordHash = userAccountModel.getPasswordHash();
+                this.fullName = userAccountModel.getFullName();
+                this.phone = userAccountModel.getPhone();
+                this.avatarUrl = userAccountModel.getAvatarUrl();
+                this.isActive = userAccountModel.isActive();
+                this.isEmailVerified = userAccountModel.isEmailVerified();
+                this.isSystem = userAccountModel.isSystem();
+                this.createdBy = userAccountModel.getCreatedBy();
+                this.updatedBy = userAccountModel.getUpdatedBy();
+                this.createdAt = userAccountModel.getCreatedAt();
+                this.updatedAt = userAccountModel.getUpdatedAt();
+                this.deletedAt = userAccountModel.getDeletedAt();
+                if (userAccountModel.getRoles() != null) {
+                        this.roles = userAccountModel.getRoles().stream()
+                                        .map(RoleSchema::new)
+                                        .collect(java.util.stream.Collectors.toSet());
+                }
+        }
+
+        public UserAccountModel toUserAccountModel() {
+                Set<com.kompu.api.entity.role.model.RoleModel> roleModels = this.roles != null
+                                ? this.roles.stream()
+                                                .map(RoleSchema::toRoleModel)
+                                                .collect(java.util.stream.Collectors.toSet())
+                                : new HashSet<>();
+
+                return UserAccountModel.builder()
+                                .id(this.id)
+                                .tenantId(this.tenantId)
+                                .username(this.username)
+                                .email(this.email)
+                                .passwordHash(this.passwordHash)
+                                .fullName(this.fullName)
+                                .phone(this.phone)
+                                .avatarUrl(this.avatarUrl)
+                                .isActive(this.isActive)
+                                .isEmailVerified(this.isEmailVerified)
+                                .isSystem(this.isSystem)
+                                .roles(roleModels)
+                                .createdBy(this.createdBy)
+                                .updatedBy(this.updatedBy)
+                                .createdAt(this.createdAt)
+                                .updatedAt(this.updatedAt)
+                                .deletedAt(this.deletedAt)
+                                .build();
+        }
 
 }

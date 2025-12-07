@@ -1,90 +1,65 @@
 package com.kompu.api.infrastructure.config.db.schema;
 
 import java.time.LocalDateTime;
-import java.util.List;
-
-import org.springframework.data.annotation.CreatedBy;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.LastModifiedBy;
-import org.springframework.data.annotation.LastModifiedDate;
-import org.springframework.data.jpa.domain.support.AuditingEntityListener;
-
-import com.kompu.api.entity.userrole.model.UserRoleModel;
+import java.util.UUID;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EntityListeners;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
+import jakarta.persistence.ForeignKey;
 import jakarta.persistence.Id;
+import jakarta.persistence.IdClass;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import com.kompu.api.entity.user.model.UserRoleModel;
+
 @Builder
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@EntityListeners(AuditingEntityListener.class)
-@Table(name = "user_roles")
+@IdClass(UserRoleId.class)
+@Table(name = "user_roles", schema = "app")
 public class UserRoleSchema {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(name = "user_id")
+    private UUID userId;
 
-    @Column(nullable = false, length = 50)
-    @Enumerated(EnumType.STRING)
-    private RoleEnum role;
+    @Id
+    @Column(name = "role_id")
+    private UUID roleId;
 
-    @CreatedBy
-    @Column(nullable = false)
-    private String createdBy;
+    @ManyToOne
+    @JoinColumn(name = "user_id", referencedColumnName = "id", insertable = false, updatable = false, foreignKey = @ForeignKey(name = "FK_user_roles_user_id"))
+    private UserSchema user;
 
-    @LastModifiedBy
-    @Column(nullable = false)
-    private String updatedBy;
+    @ManyToOne
+    @JoinColumn(name = "role_id", referencedColumnName = "id", insertable = false, updatable = false, foreignKey = @ForeignKey(name = "FK_user_roles_role_id"))
+    private RoleSchema role;
 
-    @CreatedDate
-    @Column(nullable = false)
-    private LocalDateTime createdAt;
-
-    @LastModifiedDate
-    @Column(nullable = false)
-    private LocalDateTime updatedAt;
+    @Column(name = "assigned_at", nullable = false)
+    private LocalDateTime assignedAt;
 
     public UserRoleSchema(UserRoleModel userRoleModel) {
-        this.id = userRoleModel.getId();
-        this.role = userRoleModel.getRole();
-        this.createdBy = userRoleModel.getCreatedBy();
-        this.updatedBy = userRoleModel.getUpdatedBy();
-        this.createdAt = userRoleModel.getCreatedAt();
-        this.updatedAt = userRoleModel.getUpdatedAt();
-    }
-
-    public static List<UserRoleSchema> toUserRoleSchemaList(List<UserRoleModel> userRoleModels) {
-        return userRoleModels.stream().map(UserRoleSchema::new).toList();
+        this.userId = userRoleModel.getUserId();
+        this.roleId = userRoleModel.getRoleId();
+        this.assignedAt = userRoleModel.getAssignedAt();
     }
 
     public UserRoleModel toUserRoleModel() {
-        UserRoleModel userRoleModel = new UserRoleModel(this.role);
-        userRoleModel.setId(this.id);
-        userRoleModel.setCreatedAt(this.createdAt);
-        userRoleModel.setUpdatedAt(this.updatedAt);
-        userRoleModel.setCreatedBy(this.createdBy);
-        userRoleModel.setUpdatedBy(this.updatedBy);
-        return userRoleModel;
-    }
-
-    public enum RoleEnum {
-        USER,
-        ADMIN,
-        SUPER_ADMIN
+        return UserRoleModel.builder()
+                .userId(this.userId)
+                .roleId(this.roleId)
+                .user(this.user != null ? this.user.toUserAccountModel() : null)
+                .role(this.role != null ? this.role.toRoleModel() : null)
+                .assignedAt(this.assignedAt)
+                .build();
     }
 
 }

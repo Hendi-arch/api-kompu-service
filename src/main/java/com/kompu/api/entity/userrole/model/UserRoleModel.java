@@ -3,7 +3,6 @@ package com.kompu.api.entity.userrole.model;
 import java.time.LocalDateTime;
 
 import com.kompu.api.entity.AbstractEntity;
-import com.kompu.api.infrastructure.config.db.schema.UserRoleSchema.RoleEnum;
 
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -14,11 +13,10 @@ import lombok.Setter;
 @EqualsAndHashCode(callSuper = false)
 public class UserRoleModel extends AbstractEntity<Long> {
 
-    public UserRoleModel(RoleEnum role) {
-        this.role = role;
+    public UserRoleModel() {
     }
 
-    private RoleEnum role;
+    private String role;
 
     private String createdBy;
 

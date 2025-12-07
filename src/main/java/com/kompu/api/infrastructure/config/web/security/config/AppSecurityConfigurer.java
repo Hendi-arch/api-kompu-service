@@ -10,7 +10,6 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.transport.HttpsRedirectFilter;
 
-import com.kompu.api.infrastructure.config.db.schema.UserRoleSchema.RoleEnum;
 import com.kompu.api.infrastructure.config.web.security.filter.CorsSecurityFilter;
 import com.kompu.api.infrastructure.config.web.security.filter.RevokedJwtTokenFilter;
 import com.kompu.api.infrastructure.config.web.security.filter.SecurityMethodFilter;
@@ -68,14 +67,14 @@ public class AppSecurityConfigurer {
 				.authorizeHttpRequests(
 						customizer -> customizer
 								.requestMatchers(PUBLIC_ENDPOINTS).permitAll()
-								.requestMatchers(SUPER_ADMIN_ENDPOINTS).hasRole(RoleEnum.SUPER_ADMIN.name())
+								.requestMatchers(SUPER_ADMIN_ENDPOINTS).hasRole("SUPER_ADMIN")
 								.requestMatchers(ADMIN_ENDPOINTS).hasAnyRole(
-										RoleEnum.ADMIN.name(),
-										RoleEnum.SUPER_ADMIN.name())
+										"ADMIN",
+										"SUPER_ADMIN")
 								.requestMatchers(USER_ENDPOINTS).hasAnyRole(
-										RoleEnum.USER.name(),
-										RoleEnum.ADMIN.name(),
-										RoleEnum.SUPER_ADMIN.name()))
+										"USER",
+										"ADMIN",
+										"SUPER_ADMIN"))
 				.cors(withDefaults());
 
 		http.userDetailsService(myUserDetailService)

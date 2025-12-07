@@ -1,14 +1,17 @@
 package com.kompu.api.infrastructure.user.gateway;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
+
+import org.springframework.stereotype.Component;
 
 import com.kompu.api.entity.user.gateway.UserGateway;
 import com.kompu.api.entity.user.model.UserAccountModel;
 import com.kompu.api.infrastructure.config.db.repository.UserRepository;
 import com.kompu.api.infrastructure.config.db.schema.UserSchema;
 
+@Component
 public class UserDatabaseGateway implements UserGateway {
 
     private final UserRepository repository;
@@ -28,12 +31,12 @@ public class UserDatabaseGateway implements UserGateway {
     }
 
     @Override
-    public void delete(Long id) {
+    public void delete(UUID id) {
         repository.deleteById(id);
     }
 
     @Override
-    public Optional<UserAccountModel> findById(Long id) {
+    public Optional<UserAccountModel> findById(UUID id) {
         return repository.findById(id).map(UserSchema::toUserAccountModel);
     }
 
@@ -43,13 +46,22 @@ public class UserDatabaseGateway implements UserGateway {
     }
 
     @Override
-    public List<UserAccountModel> findAll() {
-        return repository.findAll().stream().map(UserSchema::toUserAccountModel).toList();
+    public Optional<UserAccountModel> findByEmail(String email) {
+        return repository.findByEmail(email).map(UserSchema::toUserAccountModel);
     }
 
     @Override
-    public boolean hasSufficientBalanceForTransaction(Long senderId, BigDecimal transactionAmount) {
-        return repository.hasSufficientBalanceForTransaction(senderId, transactionAmount);
+    public List<UserAccountModel> findByTenantId(UUID tenantId) {
+        return repository.findByTenantId(tenantId).stream()
+                .map(UserSchema::toUserAccountModel)
+                .toList();
+    }
+
+    @Override
+    public List<UserAccountModel> findAll() {
+        return repository.findAll().stream()
+                .map(UserSchema::toUserAccountModel)
+                .toList();
     }
 
 }
