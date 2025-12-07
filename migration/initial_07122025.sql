@@ -333,6 +333,128 @@ CREATE INDEX idx_loginlog_user ON app.login_log (user_id, created_at DESC);
 CREATE INDEX idx_products_metadata_gin ON app.products USING gin (metadata);
 CREATE INDEX idx_members_metadata_gin ON app.members USING gin (metadata);
 
+-- Security entities DDL (append to your migrations)
+-- Requires: CREATE EXTENSION pgcrypto; (already created)
+
+-- === user_sessions: a device/session register for each authenticated principal
+CREATE TABLE IF NOT EXISTS app.user_sessions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id uuid,                           -- NULL for global users (super admins)
+  user_id uuid NOT NULL REFERENCES app.users(id) ON DELETE CASCADE,
+  session_name text,                        -- "Chrome on Mac", etc.
+  jti uuid,                                 -- latest active access token jti (if you track it)
+  ip inet,
+  user_agent text,
+  device_info jsonb,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  last_active_at timestamptz NOT NULL DEFAULT now(),
+  expires_at timestamptz,                   -- optional session-level expiry
+  is_active boolean NOT NULL DEFAULT true,
+  revoked_at timestamptz,
+  revoked_reason text,
+  metadata jsonb DEFAULT '{}'::jsonb,
+  deleted_at timestamptz
+);
+CREATE INDEX idx_user_sessions_user ON app.user_sessions(user_id);
+CREATE INDEX idx_user_sessions_tenant ON app.user_sessions(tenant_id);
+
+-- === refresh_tokens: store refresh tokens (hashed) with rotation support
+-- IMPORTANT: store only hashed token, never plaintext.
+CREATE TABLE IF NOT EXISTS app.refresh_tokens (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id uuid,
+  user_id uuid NOT NULL REFERENCES app.users(id) ON DELETE CASCADE,
+  session_id uuid REFERENCES app.user_sessions(id) ON DELETE SET NULL,
+  token_hash bytea NOT NULL,                 -- sha256(token) or HMAC'd value
+  token_salt bytea,                          -- optional, if you salt before hashing
+  created_at timestamptz NOT NULL DEFAULT now(),
+  expires_at timestamptz NOT NULL,
+  revoked_at timestamptz,
+  revoked_by uuid,                           -- user or system who revoked
+  replaced_by uuid,                          -- id of a new refresh_tokens row (rotation)
+  metadata jsonb DEFAULT '{}'::jsonb,
+  CONSTRAINT ux_refresh_user_hash UNIQUE (user_id, token_hash)
+);
+-- Index to find by hash quickly
+CREATE INDEX idx_refresh_tokens_hash ON app.refresh_tokens USING btree (token_hash);
+CREATE INDEX idx_refresh_tokens_user ON app.refresh_tokens (user_id);
+CREATE INDEX idx_refresh_tokens_expires ON app.refresh_tokens (expires_at);
+
+-- === revoked_jtis: blacklist of JWT IDs (jti) for forced revocation/short-circuiting
+CREATE TABLE IF NOT EXISTS app.revoked_jtis (
+  jti uuid PRIMARY KEY,                -- store JWT ID (UUID)
+  tenant_id uuid,
+  user_id uuid REFERENCES app.users(id) ON DELETE SET NULL,
+  revoked_at timestamptz NOT NULL DEFAULT now(),
+  expires_at timestamptz,              -- keep until original token expiry
+  reason text,
+  metadata jsonb DEFAULT '{}'::jsonb
+);
+CREATE INDEX idx_revoked_jtis_user ON app.revoked_jtis(user_id);
+CREATE INDEX idx_revoked_jtis_tenant ON app.revoked_jtis(tenant_id);
+
+-- === one_time_tokens: small-lived tokens used for password reset / email verification / magic link
+CREATE TABLE IF NOT EXISTS app.one_time_tokens (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id uuid,
+  user_id uuid REFERENCES app.users(id) ON DELETE CASCADE,
+  purpose text NOT NULL,               -- 'password_reset', 'email_verify', 'magic_link'
+  token_hash bytea NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  expires_at timestamptz NOT NULL,
+  used_at timestamptz,
+  used_by_ip inet,
+  metadata jsonb DEFAULT '{}'::jsonb
+);
+CREATE INDEX idx_ott_user_purpose ON app.one_time_tokens(user_id, purpose);
+CREATE INDEX idx_ott_expires ON app.one_time_tokens(expires_at);
+
+-- === api_keys: long-lived API keys for integrations (hashed storage)
+CREATE TABLE IF NOT EXISTS app.api_keys (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id uuid,                       -- NULL => global system key
+  name text NOT NULL,
+  key_hash bytea NOT NULL,
+  key_salt bytea,
+  owner_user_id uuid REFERENCES app.users(id) ON DELETE SET NULL,
+  scopes text[],                        -- array of scope strings, e.g. ['orders.read']
+  created_at timestamptz NOT NULL DEFAULT now(),
+  last_used_at timestamptz,
+  expires_at timestamptz,
+  is_active boolean NOT NULL DEFAULT true,
+  metadata jsonb DEFAULT '{}'::jsonb
+);
+CREATE INDEX idx_api_keys_tenant ON app.api_keys(tenant_id);
+CREATE INDEX idx_api_keys_hash ON app.api_keys USING btree (key_hash);
+
+-- === login_attempts: for rate-limiting & lockout detection (optional)
+CREATE TABLE IF NOT EXISTS app.login_attempts (
+  id serial PRIMARY KEY,
+  tenant_id uuid,
+  username text,
+  user_id uuid REFERENCES app.users(id) ON DELETE SET NULL,
+  ip inet,
+  user_agent text,
+  success boolean,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_login_attempts_user ON app.login_attempts(user_id);
+CREATE INDEX idx_login_attempts_username ON app.login_attempts(username);
+
+-- === auth_audit: audit trail for token/revoke actions (optional)
+CREATE TABLE IF NOT EXISTS app.auth_audit (
+  id bigserial PRIMARY KEY,
+  tenant_id uuid,
+  user_id uuid,
+  actor_user_id uuid,
+  action text NOT NULL,         -- 'refresh_issued','refresh_revoked','jti_revoked','logout'
+  resource_type text,
+  resource_id uuid,
+  payload jsonb,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_auth_audit_tenant ON app.auth_audit(tenant_id, created_at DESC);
+
 -- === Audit triggers applied to tenant-scoped tables ===
 DO $$
 DECLARE
