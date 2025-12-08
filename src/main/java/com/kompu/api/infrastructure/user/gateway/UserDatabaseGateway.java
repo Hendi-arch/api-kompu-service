@@ -4,14 +4,11 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-import org.springframework.stereotype.Component;
-
 import com.kompu.api.entity.user.gateway.UserGateway;
 import com.kompu.api.entity.user.model.UserAccountModel;
 import com.kompu.api.infrastructure.config.db.repository.UserRepository;
 import com.kompu.api.infrastructure.config.db.schema.UserSchema;
 
-@Component
 public class UserDatabaseGateway implements UserGateway {
 
     private final UserRepository repository;

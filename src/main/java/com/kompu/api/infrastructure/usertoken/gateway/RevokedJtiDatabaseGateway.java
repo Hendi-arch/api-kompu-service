@@ -4,15 +4,12 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-import org.springframework.stereotype.Component;
-
 import com.kompu.api.entity.usertoken.exception.RevokedJtiException;
 import com.kompu.api.entity.usertoken.gateway.RevokedJtiGateway;
 import com.kompu.api.entity.usertoken.model.RevokedJtiModel;
 import com.kompu.api.infrastructure.config.db.repository.RevokedJtiRepository;
 import com.kompu.api.infrastructure.config.db.schema.RevokedJtiSchema;
 
-@Component
 public class RevokedJtiDatabaseGateway implements RevokedJtiGateway {
 
     private final RevokedJtiRepository repository;

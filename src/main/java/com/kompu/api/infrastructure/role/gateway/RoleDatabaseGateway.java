@@ -4,15 +4,12 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-import org.springframework.stereotype.Component;
-
 import com.kompu.api.entity.role.exception.RoleNotFoundException;
 import com.kompu.api.entity.role.gateway.RoleGateway;
 import com.kompu.api.entity.role.model.RoleModel;
 import com.kompu.api.infrastructure.config.db.repository.RoleRepository;
 import com.kompu.api.infrastructure.config.db.schema.RoleSchema;
 
-@Component
 public class RoleDatabaseGateway implements RoleGateway {
 
     private final RoleRepository repository;

@@ -4,15 +4,12 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-import org.springframework.stereotype.Component;
-
 import com.kompu.api.entity.permission.exception.PermissionNotFoundException;
 import com.kompu.api.entity.permission.gateway.PermissionGateway;
 import com.kompu.api.entity.permission.model.PermissionModel;
 import com.kompu.api.infrastructure.config.db.repository.PermissionRepository;
 import com.kompu.api.infrastructure.config.db.schema.PermissionSchema;
 
-@Component
 public class PermissionDatabaseGateway implements PermissionGateway {
 
     private final PermissionRepository repository;

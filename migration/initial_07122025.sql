@@ -377,6 +377,20 @@ CREATE TABLE IF NOT EXISTS app.revoked_jtis (
 
 CREATE INDEX idx_revoked_jtis_user ON app.revoked_jtis(user_id);
 
+-- === Application Configuration Storage ===
+-- Global configuration for application-level settings including RSA keys
+CREATE TABLE IF NOT EXISTS app.app_config (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  config_key text NOT NULL UNIQUE,
+  config_value text NOT NULL,
+  description text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE UNIQUE INDEX idx_app_config_key ON app.app_config(lower(config_key));
+CREATE INDEX idx_app_config_created_at ON app.app_config(created_at DESC);
+
 -- === auth_audit: audit trail for token/revoke actions (optional)
 CREATE TABLE IF NOT EXISTS app.auth_audit (
   id bigserial PRIMARY KEY,

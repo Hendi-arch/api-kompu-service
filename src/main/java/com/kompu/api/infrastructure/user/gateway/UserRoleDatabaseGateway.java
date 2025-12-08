@@ -4,15 +4,12 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
-import org.springframework.stereotype.Component;
-
 import com.kompu.api.entity.user.gateway.UserRoleGateway;
 import com.kompu.api.entity.user.model.UserRoleModel;
 import com.kompu.api.infrastructure.config.db.repository.UserRoleRepository;
 import com.kompu.api.infrastructure.config.db.schema.UserRoleId;
 import com.kompu.api.infrastructure.config.db.schema.UserRoleSchema;
 
-@Component
 public class UserRoleDatabaseGateway implements UserRoleGateway {
 
     private final UserRoleRepository repository;

@@ -5,15 +5,12 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-import org.springframework.stereotype.Component;
-
 import com.kompu.api.entity.usertoken.exception.RefreshTokenNotFoundException;
 import com.kompu.api.entity.usertoken.gateway.RefreshTokenGateway;
 import com.kompu.api.entity.usertoken.model.RefreshTokenModel;
 import com.kompu.api.infrastructure.config.db.repository.RefreshTokenRepository;
 import com.kompu.api.infrastructure.config.db.schema.RefreshTokenSchema;
 
-@Component
 public class RefreshTokenDatabaseGateway implements RefreshTokenGateway {
 
     private final RefreshTokenRepository repository;

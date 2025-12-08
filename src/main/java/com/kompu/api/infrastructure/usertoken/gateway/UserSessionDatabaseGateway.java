@@ -5,15 +5,12 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-import org.springframework.stereotype.Component;
-
 import com.kompu.api.entity.usertoken.exception.UserSessionNotFoundException;
 import com.kompu.api.entity.usertoken.gateway.UserSessionGateway;
 import com.kompu.api.entity.usertoken.model.UserSessionModel;
 import com.kompu.api.infrastructure.config.db.repository.UserSessionRepository;
 import com.kompu.api.infrastructure.config.db.schema.UserSessionSchema;
 
-@Component
 public class UserSessionDatabaseGateway implements UserSessionGateway {
 
     private final UserSessionRepository repository;
