@@ -47,6 +47,11 @@ public class RoleDatabaseGateway implements RoleGateway {
     }
 
     @Override
+    public Optional<RoleModel> findByTenantIdAndName(UUID tenantId, String name) {
+        return repository.findByNameAndTenantId(name, tenantId).map(RoleSchema::toRoleModel);
+    }
+
+    @Override
     public List<RoleModel> findByTenantId(UUID tenantId) {
         return repository.findByTenantId(tenantId).stream()
                 .map(RoleSchema::toRoleModel)

@@ -36,7 +36,7 @@ public class MyUserDetailService implements UserDetailsService {
 		return User
 				.withUsername(username)
 				.password(password)
-				.authorities(authorities.toArray(new String[authorities.size()]))
+				.authorities(authorities.toArray(String[]::new))
 				.build();
 	}
 

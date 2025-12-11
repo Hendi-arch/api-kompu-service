@@ -19,6 +19,8 @@ public interface RoleGateway {
 
     Optional<RoleModel> findByName(String name, UUID tenantId);
 
+    Optional<RoleModel> findByTenantIdAndName(UUID tenantId, String name);
+
     List<RoleModel> findByTenantId(UUID tenantId);
 
     List<RoleModel> findAll();
