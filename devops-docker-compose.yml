@@ -26,6 +26,14 @@ services:
       # - ./nginx/conf.d:/etc/nginx/conf.d:ro
       # - ./ssl:/etc/nginx/ssl # if using TLS/SSL
       - ./nginx/log:/var/log/nginx
+  
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared
+    restart: always
+    networks:
+      - infra-net
+    command: tunnel --no-autoupdate run --token eyJhIjoiN2FhOWU5MWJlZWQyNzA1OTIwYjU0YTE3OGI0NTQyZTAiLCJ0IjoiY2IzYTg2YmItZmM3Yi00NTJmLWE5M2UtYmE4YzQ0NjU3ZTZmIiwicyI6Ik1UVXlZMlk0Tm1FdFpUTTJNeTAwWkdRM0xXSmlNemt0WldFek5qaG1PV1EzTnpWayJ9
 
 # Define external volumes and networks
 volumes:
