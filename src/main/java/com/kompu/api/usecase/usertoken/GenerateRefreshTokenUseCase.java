@@ -29,7 +29,7 @@ public class GenerateRefreshTokenUseCase {
      * @return the generated refresh token (raw, unhashed)
      */
     public String generateAndStoreRefreshToken(UserAccountModel userAccount, UUID sessionId) {
-        log.info("Generating refresh token for user: {}", userAccount.getUsername());
+        log.info("Generating refresh token for user: {}", userAccount.getEmail());
 
         String rawToken = UUID.randomUUID().toString();
         String tokenHash = Base64.getEncoder().encodeToString(rawToken.getBytes());
@@ -48,7 +48,7 @@ public class GenerateRefreshTokenUseCase {
                 .build();
 
         refreshTokenGateway.create(refreshToken);
-        log.info("Refresh token stored for user: {}", userAccount.getUsername());
+        log.info("Refresh token stored for user: {}", userAccount.getEmail());
 
         return rawToken;
     }

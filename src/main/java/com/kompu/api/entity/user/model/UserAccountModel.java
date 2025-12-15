@@ -25,8 +25,6 @@ public class UserAccountModel extends AbstractEntity<UUID> {
 
     private UUID tenantId;
 
-    private String username;
-
     private String email;
 
     private String passwordHash;

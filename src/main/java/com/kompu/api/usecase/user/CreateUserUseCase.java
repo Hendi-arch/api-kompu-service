@@ -24,21 +24,19 @@ public class CreateUserUseCase {
      * Creates a new user account with the provided details.
      * Password is automatically hashed using BCrypt.
      *
-     * @param username    the username for the account
      * @param email       the email address
      * @param rawPassword the plain-text password to be hashed
      * @param fullName    the user's full name
      * @param tenantId    the tenant ID (for multi-tenant system)
      * @return the created UserAccountModel
      */
-    public UserAccountModel createUser(String username, String email, String rawPassword,
+    public UserAccountModel createUser(String email, String rawPassword,
             String fullName, UUID tenantId) {
-        log.info("Creating new user account: {} for tenant: {}", username, tenantId);
+        log.info("Creating new user account for email: {} for tenant: {}", email, tenantId);
 
         UserAccountModel newUser = UserAccountModel.builder()
                 .id(UUID.randomUUID())
                 .tenantId(tenantId)
-                .username(username)
                 .email(email)
                 .passwordHash(passwordEncoder.encode(rawPassword))
                 .fullName(fullName)
@@ -48,7 +46,7 @@ public class CreateUserUseCase {
                 .build();
 
         UserAccountModel savedUser = userGateway.create(newUser);
-        log.info("User account created successfully: {} (ID: {})", username, savedUser.getId());
+        log.info("User account created successfully: {} (ID: {})", email, savedUser.getId());
         return savedUser;
     }
 

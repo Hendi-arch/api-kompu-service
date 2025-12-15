@@ -24,17 +24,17 @@ public class GenerateAccessTokenUseCase {
      * @return the generated JWT token
      */
     public String generateAccessToken(UserAccountModel userAccount) {
-        log.info("Generating access token for user: {}", userAccount.getUsername());
+        log.info("Generating access token for user: {}", userAccount.getEmail());
 
         // Convert UserAccountModel to Spring's UserDetails for JWT generation
         UserDetails userDetails = User.builder()
-                .username(userAccount.getUsername())
+                .username(userAccount.getId().toString())
                 .password(userAccount.getPasswordHash())
                 .authorities("ROLE_USER")
                 .build();
 
         String token = jwtUtils.generateJwtToken(userDetails);
-        log.info("Access token generated successfully for user: {}", userAccount.getUsername());
+        log.info("Access token generated successfully for user: {}", userAccount.getEmail());
 
         return token;
     }

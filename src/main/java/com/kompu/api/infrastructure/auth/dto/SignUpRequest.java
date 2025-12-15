@@ -43,19 +43,11 @@ import jakarta.validation.constraints.Size;
  *                        null, defaults to username)
  * @param tenantMetadata  the tenant metadata JSON (optional, stored in
  *                        app.tenants.metadata)
- * @param memberCode      the member code (optional, unique per tenant, matched
- *                        against app.members.member_code)
  * @param address         the physical address (optional, matched against
  *                        app.members.address)
- * @param memberMetadata  the member metadata JSON (optional, stored in
- *                        app.members.metadata)
- * @param roleName        the role name to assign (optional, defaults based on
- *                        tenant scenario)
  */
 public record SignUpRequest(
         // ===== Required User Account Fields =====
-        @NotBlank(message = "Username is required") @Size(min = 3, max = 50, message = "Username must be between 3 and 50 characters") @Pattern(regexp = "^[a-zA-Z0-9_]+$", message = "Username can only contain letters, numbers, and underscores") String username,
-
         @NotBlank(message = "Email is required") @Email(message = "Email should be valid") String email,
 
         @NotBlank(message = "Password is required") @Size(min = 8, max = 100, message = "Password must be between 8 and 100 characters") String password,
@@ -70,7 +62,7 @@ public record SignUpRequest(
         @JsonProperty("avatar_url") @Size(max = 500, message = "Avatar URL must not exceed 500 characters") String avatarUrl,
 
         // ===== Tenant Context Fields =====
-        @JsonProperty("tenant_id") UUID tenantId,
+        @JsonProperty("theme_id") UUID themeId,
 
         @JsonProperty("tenant_name") @Size(max = 255, message = "Tenant name must not exceed 255 characters") String tenantName,
 
@@ -78,14 +70,22 @@ public record SignUpRequest(
 
         @JsonProperty("tenant_metadata") @NotEmpty Map<String, Object> tenantMetadata,
 
-        // ===== Member/Employee Fields =====
-        @JsonProperty("member_code") @Size(max = 50, message = "Member code must not exceed 50 characters") String memberCode,
+        @JsonProperty("plan_name") @Size(max = 50, message = "Plan name must not exceed 50 characters") String planName,
 
+        // ===== Member/Employee Fields =====
         @JsonProperty("address") @Size(max = 500, message = "Address must not exceed 500 characters") String address,
 
-        @JsonProperty("member_metadata") @Size(max = 5000, message = "Member metadata must not exceed 5000 characters") String memberMetadata,
+        // ===== Registration Tracking Fields =====
+        @JsonProperty("registration_type") @Size(max = 50, message = "Registration type must not exceed 50 characters") String registrationType,
 
-        // ===== Role Assignment =====
-        @JsonProperty("role_name") @Size(max = 100, message = "Role name must not exceed 100 characters") String roleName)
+        @JsonProperty("ip_address") @Size(max = 45, message = "IP address must not exceed 45 characters") String ipAddress,
+
+        @JsonProperty("user_agent") @Size(max = 500, message = "User agent must not exceed 500 characters") String userAgent,
+
+        @JsonProperty("terms_accepted_at") Long termsAcceptedAt,
+
+        @JsonProperty("privacy_accepted_at") Long privacyAcceptedAt,
+
+        @JsonProperty("registration_source") @Size(max = 50, message = "Registration source must not exceed 50 characters") String registrationSource)
         implements ISignUpRequest {
 }

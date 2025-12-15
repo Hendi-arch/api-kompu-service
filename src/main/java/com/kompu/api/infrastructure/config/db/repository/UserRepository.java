@@ -12,8 +12,6 @@ import com.kompu.api.infrastructure.config.db.schema.UserSchema;
 @Repository
 public interface UserRepository extends JpaRepository<UserSchema, UUID> {
 
-    Optional<UserSchema> findByUsername(String username);
-
     Optional<UserSchema> findByEmail(String email);
 
     List<UserSchema> findByTenantId(UUID tenantId);

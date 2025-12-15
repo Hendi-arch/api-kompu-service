@@ -12,7 +12,7 @@ import java.util.UUID;
 @Repository
 public interface RolePermissionRepository extends JpaRepository<RolePermissionSchema, RolePermissionId> {
 
-    List<RolePermissionSchema> findByRoleId(UUID roleId);
+    RolePermissionSchema findByRoleId(UUID roleId);
 
     List<RolePermissionSchema> findByPermissionId(UUID permissionId);
 

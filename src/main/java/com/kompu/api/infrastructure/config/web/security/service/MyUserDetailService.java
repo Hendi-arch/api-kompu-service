@@ -2,6 +2,7 @@ package com.kompu.api.infrastructure.config.web.security.service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -22,8 +23,18 @@ public class MyUserDetailService implements UserDetailsService {
 
 	@Override
 	public UserDetails loadUserByUsername(String identity) {
-		UserAccountModel userAccount = getUserUseCase.findByUsername(identity);
-		String username = userAccount.getUsername();
+		UserAccountModel userAccount;
+
+		// Try to identify if it's a UUID (UserId)
+		try {
+			UUID userId = UUID.fromString(identity);
+			userAccount = getUserUseCase.findById(userId);
+		} catch (IllegalArgumentException e) {
+			// Not a UUID, assume it's an email
+			userAccount = getUserUseCase.findByEmail(identity);
+		}
+
+		String userIdString = userAccount.getId().toString();
 		String password = userAccount.getPasswordHash();
 
 		List<String> authorities = new ArrayList<>();
@@ -34,7 +45,7 @@ public class MyUserDetailService implements UserDetailsService {
 		}
 
 		return User
-				.withUsername(username)
+				.withUsername(userIdString) // Principal is UserId
 				.password(password)
 				.authorities(authorities.toArray(String[]::new))
 				.build();

@@ -17,8 +17,6 @@ public interface UserGateway {
 
     Optional<UserAccountModel> findById(UUID id);
 
-    Optional<UserAccountModel> findByUsername(String username);
-
     Optional<UserAccountModel> findByEmail(String email);
 
     List<UserAccountModel> findByTenantId(UUID tenantId);

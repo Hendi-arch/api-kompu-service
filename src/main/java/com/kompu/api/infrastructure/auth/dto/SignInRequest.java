@@ -5,6 +5,7 @@ import java.util.UUID;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.kompu.api.usecase.auth.dto.ISignInRequest;
 
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
@@ -31,15 +32,15 @@ import jakarta.validation.constraints.Size;
  *                        identification)
  */
 public record SignInRequest(
-        @NotBlank(message = "Username is required") @Size(min = 1, max = 50, message = "Username must be between 1 and 50 characters") String username,
+                @NotBlank(message = "Email is required") @Email(message = "Email should be valid") String email,
 
-        @NotBlank(message = "Password is required") @Size(min = 1, max = 100, message = "Password must be between 1 and 100 characters") String password,
+                @NotBlank(message = "Password is required") @Size(min = 1, max = 100, message = "Password must be between 1 and 100 characters") String password,
 
-        @JsonProperty("tenant_id") UUID tenantId,
+                @JsonProperty("tenant_id") UUID tenantId,
 
-        @JsonProperty("client_ip_address") @Size(max = 45, message = "IP address must not exceed 45 characters (IPv6)") String clientIpAddress,
+                @JsonProperty("client_ip_address") @Size(max = 45, message = "IP address must not exceed 45 characters (IPv6)") String clientIpAddress,
 
-        @JsonProperty("user_agent") @Size(max = 500, message = "User agent must not exceed 500 characters") String userAgent)
-        implements ISignInRequest {
+                @JsonProperty("user_agent") @Size(max = 500, message = "User agent must not exceed 500 characters") String userAgent)
+                implements ISignInRequest {
 
 }

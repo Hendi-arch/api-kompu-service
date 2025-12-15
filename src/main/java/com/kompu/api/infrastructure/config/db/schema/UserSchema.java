@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.springframework.data.annotation.CreatedBy;
 import org.springframework.data.annotation.CreatedDate;
@@ -11,6 +12,7 @@ import org.springframework.data.annotation.LastModifiedBy;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
+import com.kompu.api.entity.role.model.RoleModel;
 import com.kompu.api.entity.user.model.UserAccountModel;
 
 import jakarta.persistence.Column;
@@ -37,8 +39,7 @@ import lombok.NoArgsConstructor;
 @Entity
 @EntityListeners(AuditingEntityListener.class)
 @Table(name = "users", schema = "app", uniqueConstraints = {
-                @UniqueConstraint(columnNames = { "tenant_id", "email" }),
-                @UniqueConstraint(columnNames = { "tenant_id", "username" })
+                @UniqueConstraint(columnNames = { "tenant_id", "email" })
 })
 public class UserSchema {
 
@@ -48,9 +49,6 @@ public class UserSchema {
 
         @Column(name = "tenant_id")
         private UUID tenantId;
-
-        @Column(nullable = false, length = 100)
-        private String username;
 
         @Column(nullable = false, length = 255)
         private String email;
@@ -103,7 +101,6 @@ public class UserSchema {
         public UserSchema(UserAccountModel userAccountModel) {
                 this.id = userAccountModel.getId();
                 this.tenantId = userAccountModel.getTenantId();
-                this.username = userAccountModel.getUsername();
                 this.email = userAccountModel.getEmail();
                 this.passwordHash = userAccountModel.getPasswordHash();
                 this.fullName = userAccountModel.getFullName();
@@ -120,21 +117,20 @@ public class UserSchema {
                 if (userAccountModel.getRoles() != null) {
                         this.roles = userAccountModel.getRoles().stream()
                                         .map(RoleSchema::new)
-                                        .collect(java.util.stream.Collectors.toSet());
+                                        .collect(Collectors.toSet());
                 }
         }
 
         public UserAccountModel toUserAccountModel() {
-                Set<com.kompu.api.entity.role.model.RoleModel> roleModels = this.roles != null
+                Set<RoleModel> roleModels = this.roles != null
                                 ? this.roles.stream()
                                                 .map(RoleSchema::toRoleModel)
-                                                .collect(java.util.stream.Collectors.toSet())
+                                                .collect(Collectors.toSet())
                                 : new HashSet<>();
 
                 return UserAccountModel.builder()
                                 .id(this.id)
                                 .tenantId(this.tenantId)
-                                .username(this.username)
                                 .email(this.email)
                                 .passwordHash(this.passwordHash)
                                 .fullName(this.fullName)

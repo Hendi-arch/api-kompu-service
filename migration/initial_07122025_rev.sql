@@ -1,5 +1,5 @@
 -- 2025-12-07_koperasi_multitenant_schema.sql
--- Organized flow: Registration → Authentication → Business Operations
+-- Organized flow: Master Entities → Registration Entities → Authentication → Business Operations
 -- Use with Flyway or Liquibase. Each CREATE can be separated into migrations.
 
 -- ============================================================================
@@ -37,43 +37,10 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- ============================================================================
--- PHASE 2: TENANT & SUBSCRIPTION REGISTRATION
+-- PHASE 2: MASTER/REFERENCE ENTITIES (Config data created before registration)
 -- ============================================================================
 
--- === 2.1: Tenant - Core entity created during registration ===
-CREATE TABLE app.tenants (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  name text NOT NULL,
-  code text UNIQUE, -- short code / custom URL slug
-  status text NOT NULL DEFAULT 'active', -- active | suspended | archived
-  metadata jsonb DEFAULT '{}'::jsonb, -- flexible storage for logo_url, theme_preference, etc.
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  created_by uuid,
-  updated_by uuid,
-  deleted_at timestamptz
-);
-
-CREATE INDEX IF NOT EXISTS idx_tenants_status ON app.tenants(status);
-CREATE INDEX IF NOT EXISTS idx_tenants_code ON app.tenants(lower(code));
-
--- === 2.2: Tenant Domains - Custom domain mapping ===
-CREATE TABLE app.tenant_domains (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id uuid NOT NULL REFERENCES app.tenants(id) ON DELETE CASCADE,
-  host text NOT NULL, -- e.g. koperasi1.kompu.id or www.koperasi1.com
-  is_primary boolean DEFAULT false,
-  is_custom boolean DEFAULT false,
-  https_enabled boolean DEFAULT true,
-  tls_provider text DEFAULT 'cloudflare',
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  deleted_at timestamptz
-);
-CREATE UNIQUE INDEX idx_tenant_domains_host ON app.tenant_domains(lower(host));
-CREATE INDEX idx_tenant_domains_tenant ON app.tenant_domains(tenant_id);
-
--- === 2.3: Subscription Plans - Available tiers (BASIC, PRO, ENTERPRISE) ===
+-- === 2.1: Subscription Plans - Available pricing tiers ===
 CREATE TABLE app.subscription_plans (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   name text NOT NULL UNIQUE, -- 'BASIC', 'PRO', 'ENTERPRISE'
@@ -90,7 +57,7 @@ CREATE TABLE app.subscription_plans (
 
 CREATE INDEX idx_subscription_plans_active ON app.subscription_plans(is_active);
 
--- === 2.4: Subscription Features - Feature flags per plan ===
+-- === 2.2: Subscription Features - Feature catalog ===
 CREATE TABLE app.subscription_features (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   feature_key text NOT NULL UNIQUE, -- e.g., 'feature.member_portal', 'feature.simpan_pinjam'
@@ -100,7 +67,7 @@ CREATE TABLE app.subscription_features (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
--- === 2.5: Subscription Plan Features Mapping ===
+-- === 2.3: Subscription Plan Features Mapping ===
 CREATE TABLE app.subscription_plan_features (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   plan_id uuid NOT NULL REFERENCES app.subscription_plans(id) ON DELETE CASCADE,
@@ -111,7 +78,7 @@ CREATE TABLE app.subscription_plan_features (
 
 CREATE INDEX idx_plan_features_plan ON app.subscription_plan_features(plan_id);
 
--- === 2.6: Dashboard Themes - Visual customization options ===
+-- === 2.4: Dashboard Themes - Visual customization templates ===
 CREATE TABLE IF NOT EXISTS app.dashboard_themes (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   name text NOT NULL UNIQUE, -- 'tema1', 'tema2', 'tema3'
@@ -126,52 +93,97 @@ CREATE TABLE IF NOT EXISTS app.dashboard_themes (
 
 CREATE INDEX idx_dashboard_themes_active ON app.dashboard_themes(is_active);
 
--- === 2.7: Add theme_id FK to tenants (optional - link to themes table) ===
-ALTER TABLE app.tenants ADD COLUMN IF NOT EXISTS theme_id uuid REFERENCES app.dashboard_themes(id);
-
--- === 2.9: Tenant Subscriptions - Active subscription tracking ===
-CREATE TABLE app.tenant_subscriptions (
+-- === 2.5: Permissions - Granular permission definitions ===
+CREATE TABLE app.permissions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id uuid NOT NULL UNIQUE REFERENCES app.tenants(id) ON DELETE CASCADE,
-  plan_id uuid NOT NULL REFERENCES app.subscription_plans(id),
-  subscription_start_date date NOT NULL DEFAULT CURRENT_DATE,
-  subscription_end_date date,
-  status text NOT NULL DEFAULT 'active', -- 'trial', 'active', 'suspended', 'cancelled', 'expired'
-  auto_renew boolean NOT NULL DEFAULT true,
-  trial_ends_at timestamptz,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  created_by uuid,
-  updated_by uuid
+  code text NOT NULL UNIQUE, -- e.g. products.create, orders.read
+  description text,
+  created_at timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_tenant_subscriptions_status ON app.tenant_subscriptions(status);
-CREATE INDEX idx_tenant_subscriptions_plan ON app.tenant_subscriptions(plan_id);
-CREATE INDEX idx_tenant_subscriptions_tenant ON app.tenant_subscriptions(tenant_id);
-
--- === 2.10: Subscription Invoices - Billing history ===
-CREATE TABLE app.subscription_invoices (
+-- === 2.6: Roles - RBAC role definitions (global or tenant-scoped) ===
+CREATE TABLE app.roles (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id uuid NOT NULL REFERENCES app.tenants(id) ON DELETE CASCADE,
-  subscription_id uuid NOT NULL REFERENCES app.tenant_subscriptions(id),
-  invoice_number text NOT NULL,
-  amount numeric(14,2) NOT NULL,
-  currency text NOT NULL DEFAULT 'IDR',
-  billing_period_start date NOT NULL,
-  billing_period_end date NOT NULL,
-  status text NOT NULL DEFAULT 'draft', -- 'draft', 'sent', 'paid', 'failed', 'refunded'
-  issued_at timestamptz NOT NULL DEFAULT now(),
-  due_at timestamptz NOT NULL,
-  paid_at timestamptz,
+  tenant_id uuid REFERENCES app.tenants(id) ON DELETE CASCADE, -- NULL => global role
+  name text NOT NULL,
+  description text,
+  is_system boolean DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX idx_roles_tenant_name ON app.roles(tenant_id, lower(name));
+
+-- === 2.7: Role Permissions Mapping ===
+CREATE TABLE app.role_permissions (
+  role_id uuid NOT NULL REFERENCES app.roles(id) ON DELETE CASCADE,
+  permission_id uuid NOT NULL REFERENCES app.permissions(id) ON DELETE CASCADE,
+  PRIMARY KEY (role_id, permission_id)
+);
+
+-- === 2.8: Feature Flags - Enable/disable features per tenant or globally ===
+CREATE TABLE app.feature_flags (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id uuid REFERENCES app.tenants(id) ON DELETE CASCADE, -- NULL => global flag
+  key text NOT NULL,
+  value jsonb NOT NULL,
+  enabled boolean DEFAULT true,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX idx_flags_tenant_key ON app.feature_flags(tenant_id, lower(key));
+
+-- === 2.9: Application Configuration ===
+CREATE TABLE IF NOT EXISTS app.app_config (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  config_key text NOT NULL UNIQUE,
+  config_value text NOT NULL,
+  description text,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE UNIQUE INDEX idx_subscription_invoices_number ON app.subscription_invoices(tenant_id, invoice_number);
-CREATE INDEX idx_subscription_invoices_status ON app.subscription_invoices(status);
-CREATE INDEX idx_subscription_invoices_tenant ON app.subscription_invoices(tenant_id, issued_at DESC);
+CREATE UNIQUE INDEX idx_app_config_key ON app.app_config(lower(config_key));
+CREATE INDEX idx_app_config_created_at ON app.app_config(created_at DESC);
 
--- === 2.11: Tenant Registrations - Registration audit & compliance trail ===
+-- ============================================================================
+-- PHASE 3: TENANT & REGISTRATION ENTITIES (Created during signup/registration)
+-- ============================================================================
+
+-- === 3.1: Tenant - Core entity created during registration ===
+CREATE TABLE app.tenants (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name text NOT NULL,
+  code text UNIQUE, -- short code / custom URL slug
+  status text NOT NULL DEFAULT 'active', -- active | suspended | archived
+  metadata jsonb DEFAULT '{}'::jsonb, -- flexible storage for logo_url, theme_preference, etc.
+  theme_id uuid REFERENCES app.dashboard_themes(id), -- link to themes table
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  created_by uuid,
+  updated_by uuid,
+  deleted_at timestamptz
+);
+
+CREATE INDEX IF NOT EXISTS idx_tenants_status ON app.tenants(status);
+CREATE INDEX IF NOT EXISTS idx_tenants_code ON app.tenants(lower(code));
+
+-- === 3.2: Tenant Domains - Custom domain mapping ===
+CREATE TABLE app.tenant_domains (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id uuid NOT NULL REFERENCES app.tenants(id) ON DELETE CASCADE,
+  host text NOT NULL, -- e.g. koperasi1.kompu.id or www.koperasi1.com
+  is_primary boolean DEFAULT false,
+  is_custom boolean DEFAULT false,
+  https_enabled boolean DEFAULT true,
+  tls_provider text DEFAULT 'cloudflare',
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  deleted_at timestamptz
+);
+CREATE UNIQUE INDEX idx_tenant_domains_host ON app.tenant_domains(lower(host));
+CREATE INDEX idx_tenant_domains_tenant ON app.tenant_domains(tenant_id);
+
+-- === 3.3: Tenant Registrations - Registration audit & compliance trail ===
 CREATE TABLE IF NOT EXISTS app.tenant_registrations (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id uuid NOT NULL UNIQUE REFERENCES app.tenants(id) ON DELETE CASCADE,
@@ -193,15 +205,56 @@ CREATE TABLE IF NOT EXISTS app.tenant_registrations (
 CREATE INDEX idx_tenant_registrations_created_at ON app.tenant_registrations(created_at DESC);
 CREATE INDEX idx_tenant_registrations_email ON app.tenant_registrations(lower(email_used));
 
+-- === 3.4: Tenant Subscriptions - Active subscription tracking ===
+CREATE TABLE app.tenant_subscriptions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id uuid NOT NULL UNIQUE REFERENCES app.tenants(id) ON DELETE CASCADE,
+  plan_id uuid NOT NULL REFERENCES app.subscription_plans(id),
+  subscription_start_date date NOT NULL DEFAULT CURRENT_DATE,
+  subscription_end_date date,
+  status text NOT NULL DEFAULT 'active', -- 'trial', 'active', 'suspended', 'cancelled', 'expired'
+  auto_renew boolean NOT NULL DEFAULT true,
+  trial_ends_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  created_by uuid,
+  updated_by uuid
+);
+
+CREATE INDEX idx_tenant_subscriptions_status ON app.tenant_subscriptions(status);
+CREATE INDEX idx_tenant_subscriptions_plan ON app.tenant_subscriptions(plan_id);
+CREATE INDEX idx_tenant_subscriptions_tenant ON app.tenant_subscriptions(tenant_id);
+
+-- === 3.5: Subscription Invoices - Billing history ===
+CREATE TABLE app.subscription_invoices (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id uuid NOT NULL REFERENCES app.tenants(id) ON DELETE CASCADE,
+  subscription_id uuid NOT NULL REFERENCES app.tenant_subscriptions(id),
+  invoice_number text NOT NULL,
+  amount numeric(14,2) NOT NULL,
+  currency text NOT NULL DEFAULT 'IDR',
+  billing_period_start date NOT NULL,
+  billing_period_end date NOT NULL,
+  status text NOT NULL DEFAULT 'draft', -- 'draft', 'sent', 'paid', 'failed', 'refunded'
+  issued_at timestamptz NOT NULL DEFAULT now(),
+  due_at timestamptz NOT NULL,
+  paid_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE UNIQUE INDEX idx_subscription_invoices_number ON app.subscription_invoices(tenant_id, invoice_number);
+CREATE INDEX idx_subscription_invoices_status ON app.subscription_invoices(status);
+CREATE INDEX idx_subscription_invoices_tenant ON app.subscription_invoices(tenant_id, issued_at DESC);
+
 -- ============================================================================
--- PHASE 3: AUTHENTICATION & USER MANAGEMENT
+-- PHASE 4: AUTHENTICATION & USER MANAGEMENT
 -- ============================================================================
 
 -- === 3.1: Users - Core user accounts (global or tenant-scoped) ===
 CREATE TABLE app.users (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id uuid REFERENCES app.tenants(id) ON DELETE CASCADE, -- NULL => global (super admin) account
-  username text NOT NULL,
   email text NOT NULL,
   password_hash text, -- managed by app; nullable for SSO users
   full_name text,
@@ -217,7 +270,6 @@ CREATE TABLE app.users (
   deleted_at timestamptz
 );
 CREATE UNIQUE INDEX idx_users_email_tenant ON app.users (tenant_id, lower(email));
-CREATE UNIQUE INDEX idx_users_username_tenant ON app.users (tenant_id, lower(username));
 
 -- === 3.2: User Sessions - Track login sessions per device/IP ===
 CREATE TABLE IF NOT EXISTS app.user_sessions (
@@ -296,7 +348,7 @@ CREATE TABLE app.user_roles (
 );
 
 -- ============================================================================
--- PHASE 4: BUSINESS SETUP & MEMBERS
+-- PHASE 5: BUSINESS SETUP & MEMBERS
 -- ============================================================================
 
 -- === 4.1: Members / Employees - Tenant member directory ===
@@ -322,7 +374,7 @@ CREATE INDEX idx_members_tenant_member_code ON app.members(tenant_id, member_cod
 CREATE INDEX idx_members_tenant_fullname ON app.members(tenant_id, lower(full_name) text_pattern_ops);
 
 -- ============================================================================
--- PHASE 5: PRODUCT CATALOG & INVENTORY
+-- PHASE 6: PRODUCT CATALOG & INVENTORY
 -- ============================================================================
 
 -- === 5.1: Product Categories - Product taxonomy ===
@@ -376,7 +428,7 @@ CREATE TABLE app.inventories (
 CREATE UNIQUE INDEX idx_inventories_unique ON app.inventories(tenant_id, product_id, location);
 
 -- ============================================================================
--- PHASE 6: SUPPLY CHAIN & SUPPLIERS
+-- PHASE 7: SUPPLY CHAIN & SUPPLIERS
 -- ============================================================================
 
 -- === 6.1: Suppliers / Vendors - Supplier management ===
@@ -435,7 +487,7 @@ CREATE INDEX idx_supplier_prices_product ON app.supplier_product_prices(product_
 CREATE INDEX idx_supplier_prices_tenant ON app.supplier_product_prices(tenant_id);
 
 -- ============================================================================
--- PHASE 7: SALES & ORDERS
+-- PHASE 8: SALES & ORDERS
 -- ============================================================================
 
 -- === 7.1: Orders - Sales and purchase orders ===
@@ -495,7 +547,7 @@ CREATE INDEX idx_payments_tenant_order ON app.payments(tenant_id, order_id);
 CREATE INDEX idx_payments_status ON app.payments(status);
 
 -- ============================================================================
--- PHASE 8: FINANCIAL PRODUCTS & ACCOUNTING
+-- PHASE 9: FINANCIAL PRODUCTS & ACCOUNTING
 -- ============================================================================
 
 -- === 8.1: Savings Accounts - Member savings tracking ===
@@ -529,7 +581,7 @@ CREATE TABLE app.loans (
 CREATE UNIQUE INDEX idx_loans_tenant_number ON app.loans(tenant_id, loan_number);
 
 -- ============================================================================
--- PHASE 9: DOCUMENT MANAGEMENT
+-- PHASE 10: DOCUMENT MANAGEMENT
 -- ============================================================================
 
 -- === 9.1: Documents - Document generation tracking (PO, Invoice, etc.) ===
@@ -556,7 +608,7 @@ CREATE INDEX idx_documents_order ON app.documents(order_id);
 CREATE INDEX idx_documents_created_at ON app.documents(created_at DESC);
 
 -- ============================================================================
--- PHASE 10: SYSTEM & MONITORING
+-- PHASE 11: SYSTEM & MONITORING
 -- ============================================================================
 
 -- === 10.1: Activity Log - Comprehensive audit trail for all actions ===
@@ -579,7 +631,7 @@ CREATE TABLE app.login_log (
   id bigserial PRIMARY KEY,
   tenant_id uuid,
   user_id uuid,
-  username text,
+  email text,
   ip inet,
   user_agent text,
   result text, -- 'success', 'failed', 'blocked'
@@ -629,7 +681,7 @@ CREATE UNIQUE INDEX idx_app_config_key ON app.app_config(lower(config_key));
 CREATE INDEX idx_app_config_created_at ON app.app_config(created_at DESC);
 
 -- ============================================================================
--- FINAL: AUDIT TRIGGERS & INDEXES
+-- PHASE 12: AUDIT TRIGGERS & INDEXES
 -- ============================================================================
 
 -- Creates audit triggers on all tables that have audit columns
@@ -647,7 +699,7 @@ END;
 $$;
 
 -- ============================================================================
--- PERFORMANCE INDEXES
+-- PHASE 13: PERFORMANCE INDEXES
 -- ============================================================================
 
 -- Tenant & Subscription indexes

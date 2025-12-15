@@ -95,7 +95,7 @@ public class TenantRegistrationSchema {
     /**
      * Converts schema back to domain model
      */
-    public TenantRegistrationModel toTenantRegistrationModel() {
+    public TenantRegistrationModel toModel() {
         return TenantRegistrationModel.builder()
                 .id(this.id)
                 .tenantId(this.tenantId)

@@ -51,6 +51,11 @@ public class TenantModel extends AbstractEntity<UUID> {
     private String metadata = "{}";
 
     /**
+     * ID of the selected dashboard theme
+     */
+    private UUID themeId;
+
+    /**
      * Tenant founder/owner user ID
      */
     private UUID founderUserId;

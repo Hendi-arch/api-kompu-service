@@ -4,6 +4,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
+import com.kompu.api.infrastructure.shared.SharedUseCase;
+
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -123,6 +125,115 @@ public class MvcConfiguration {
     public CreateUserSessionUseCase createUserSessionUseCase(UserSessionRepository userSessionRepository) {
         UserSessionGateway userSessionGateway = new UserSessionDatabaseGateway(userSessionRepository);
         return new CreateUserSessionUseCase(userSessionGateway);
+    }
+
+    // ==================== Shared Beans ====================
+
+    @Bean
+    public SharedUseCase sharedUseCase(ObjectMapper objectMapper) {
+        return new com.kompu.api.infrastructure.shared.SharedUseCase(objectMapper);
+    }
+
+    // ==================== Complete Auth Use Cases ====================
+
+    @Bean
+    public com.kompu.api.usecase.auth.SignUpUseCase signUpUseCase(
+            com.kompu.api.infrastructure.shared.SharedUseCase sharedUseCase,
+            UserRepository userRepository,
+            com.kompu.api.infrastructure.config.db.repository.RoleRepository roleRepository,
+            com.kompu.api.infrastructure.config.db.repository.UserRoleRepository userRoleRepository,
+            com.kompu.api.infrastructure.config.db.repository.MemberRepository memberRepository,
+            com.kompu.api.infrastructure.config.db.repository.TenantRepository tenantRepository,
+            com.kompu.api.infrastructure.config.db.repository.TenantDomainRepository tenantDomainRepository,
+            com.kompu.api.infrastructure.config.db.repository.TenantRegistrationRepository tenantRegistrationRepository,
+            com.kompu.api.infrastructure.config.db.repository.TenantSubscriptionRepository tenantSubscriptionRepository,
+            com.kompu.api.infrastructure.config.db.repository.SubscriptionPlanRepository subscriptionPlanRepository,
+            UserSessionRepository userSessionRepository,
+            RefreshTokenRepository refreshTokenRepository,
+            BCryptPasswordEncoder passwordEncoder,
+            JwtUtils jwtUtils,
+            com.kompu.api.infrastructure.config.web.security.service.MyUserDetailService myUserDetailService) {
+
+        UserGateway userGateway = new UserDatabaseGateway(userRepository);
+        com.kompu.api.entity.role.gateway.RoleGateway roleGateway = new com.kompu.api.infrastructure.role.gateway.RoleDatabaseGateway(
+                roleRepository);
+        com.kompu.api.entity.user.gateway.UserRoleGateway userRoleGateway = new com.kompu.api.infrastructure.user.gateway.UserRoleDatabaseGateway(
+                userRoleRepository);
+        com.kompu.api.entity.member.gateway.MemberGateway memberGateway = new com.kompu.api.infrastructure.member.gateway.MemberDatabaseGateway(
+                memberRepository);
+        com.kompu.api.entity.tenant.gateway.TenantGateway tenantGateway = new com.kompu.api.infrastructure.tenant.gateway.TenantDatabaseGateway(
+                tenantRepository);
+        com.kompu.api.entity.tenantdomain.gateway.TenantDomainGateway tenantDomainGateway = new com.kompu.api.infrastructure.tenantdomain.gateway.TenantDomainDatabaseGateway(
+                tenantDomainRepository);
+        com.kompu.api.entity.subscription.gateway.TenantRegistrationGateway tenantRegistrationGateway = new com.kompu.api.infrastructure.subscription.gateway.TenantRegistrationDatabaseGateway(
+                tenantRegistrationRepository);
+        com.kompu.api.entity.subscription.gateway.TenantSubscriptionGateway tenantSubscriptionGateway = new com.kompu.api.infrastructure.subscription.gateway.TenantSubscriptionDatabaseGateway(
+                tenantSubscriptionRepository);
+        com.kompu.api.entity.subscription.gateway.SubscriptionPlanGateway subscriptionPlanGateway = new com.kompu.api.infrastructure.subscription.gateway.SubscriptionPlanDatabaseGateway(
+                subscriptionPlanRepository);
+        UserSessionGateway userSessionGateway = new UserSessionDatabaseGateway(userSessionRepository);
+        RefreshTokenGateway refreshTokenGateway = new RefreshTokenDatabaseGateway(refreshTokenRepository);
+
+        return new com.kompu.api.usecase.auth.SignUpUseCase(
+                sharedUseCase,
+                userGateway,
+                roleGateway,
+                userRoleGateway,
+                memberGateway,
+                tenantGateway,
+                tenantDomainGateway,
+                tenantRegistrationGateway,
+                tenantSubscriptionGateway,
+                subscriptionPlanGateway,
+                userSessionGateway,
+                refreshTokenGateway,
+                passwordEncoder,
+                jwtUtils,
+                myUserDetailService);
+    }
+
+    @Bean
+    public com.kompu.api.usecase.auth.SignInUseCase signInUseCase(
+            ValidateUserCredentialsUseCase validateUserCredentialsUseCase,
+            CreateUserSessionUseCase createUserSessionUseCase,
+            GenerateAccessTokenUseCase generateAccessTokenUseCase,
+            GenerateRefreshTokenUseCase generateRefreshTokenUseCase,
+            com.kompu.api.infrastructure.config.db.repository.LoginLogRepository loginLogRepository) {
+
+        com.kompu.api.entity.system.gateway.LoginLogGateway loginLogGateway = new com.kompu.api.infrastructure.system.gateway.LoginLogDatabaseGateway(
+                loginLogRepository);
+
+        return new com.kompu.api.usecase.auth.SignInUseCase(
+                validateUserCredentialsUseCase,
+                createUserSessionUseCase,
+                generateAccessTokenUseCase,
+                generateRefreshTokenUseCase,
+                loginLogGateway);
+    }
+
+    @Bean
+    public com.kompu.api.usecase.auth.RefreshTokenUseCase refreshTokenUseCase(
+            ValidateRefreshTokenUseCase validateRefreshTokenUseCase,
+            RefreshTokenRepository refreshTokenRepository,
+            UserRepository userRepository,
+            GenerateAccessTokenUseCase generateAccessTokenUseCase,
+            GenerateRefreshTokenUseCase generateRefreshTokenUseCase) {
+
+        RefreshTokenGateway refreshTokenGateway = new RefreshTokenDatabaseGateway(refreshTokenRepository);
+        UserGateway userGateway = new UserDatabaseGateway(userRepository);
+
+        return new com.kompu.api.usecase.auth.RefreshTokenUseCase(
+                validateRefreshTokenUseCase,
+                refreshTokenGateway,
+                userGateway,
+                generateAccessTokenUseCase,
+                generateRefreshTokenUseCase);
+    }
+
+    @Bean
+    public com.kompu.api.usecase.auth.ForgotPasswordUseCase forgotPasswordUseCase(UserRepository userRepository) {
+        UserGateway userGateway = new UserDatabaseGateway(userRepository);
+        return new com.kompu.api.usecase.auth.ForgotPasswordUseCase(userGateway);
     }
 
 }

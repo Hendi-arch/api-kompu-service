@@ -38,11 +38,6 @@ public class UserDatabaseGateway implements UserGateway {
     }
 
     @Override
-    public Optional<UserAccountModel> findByUsername(String username) {
-        return repository.findByUsername(username).map(UserSchema::toUserAccountModel);
-    }
-
-    @Override
     public Optional<UserAccountModel> findByEmail(String email) {
         return repository.findByEmail(email).map(UserSchema::toUserAccountModel);
     }

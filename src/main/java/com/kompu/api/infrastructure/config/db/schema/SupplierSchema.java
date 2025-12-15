@@ -99,6 +99,10 @@ public class SupplierSchema {
     @Column(columnDefinition = "text")
     private String notes;
 
+    @Column(columnDefinition = "jsonb")
+    @Builder.Default
+    private String metadata = "{}";
+
     @CreatedDate
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
@@ -139,6 +143,7 @@ public class SupplierSchema {
         this.rating = model.getRating();
         this.paymentTerms = model.getPaymentTerms();
         this.notes = model.getNotes();
+        this.metadata = model.getMetadata();
         this.createdBy = model.getCreatedBy();
         this.updatedBy = model.getUpdatedBy();
     }
@@ -167,6 +172,7 @@ public class SupplierSchema {
                 .rating(this.rating)
                 .paymentTerms(this.paymentTerms)
                 .notes(this.notes)
+                .metadata(this.metadata)
                 .createdAt(this.createdAt)
                 .updatedAt(this.updatedAt)
                 .createdBy(this.createdBy)

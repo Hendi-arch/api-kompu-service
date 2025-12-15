@@ -21,25 +21,25 @@ public class ValidateUserCredentialsUseCase {
     }
 
     /**
-     * Validates user credentials (username and password).
-     * Throws UserNotFoundException if user not found by username.
+     * Validates user credentials (email and password).
+     * Throws UserNotFoundException if user not found by email.
      * Throws PasswordNotMatchException if password doesn't match.
      *
-     * @param username    the username to validate
+     * @param email       the email to validate
      * @param rawPassword the plain-text password to validate
      * @return UserAccountModel if credentials are valid
      */
-    public UserAccountModel validateCredentials(String username, String rawPassword) {
-        UserAccountModel user = userGateway.findByUsername(username)
+    public UserAccountModel validateCredentials(String email, String rawPassword) {
+        UserAccountModel user = userGateway.findByEmail(email)
                 .orElseThrow(UserNotFoundException::new);
 
         if (!passwordEncoder.matches(rawPassword, user.getPasswordHash())) {
-            log.warn("Password mismatch for user: {}", username);
+            log.warn("Password mismatch for user: {}", email);
             throw new PasswordNotMatchException();
         }
 
         if (!user.isActive()) {
-            log.warn("User account is inactive: {}", username);
+            log.warn("User account is inactive: {}", email);
             throw new UserNotFoundException();
         }
 

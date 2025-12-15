@@ -46,7 +46,6 @@ public record AuthTokenResponse(
          */
         public record UserAuthResponse(
                         String id,
-                        String username,
                         String email,
                         String fullName,
                         String phone,

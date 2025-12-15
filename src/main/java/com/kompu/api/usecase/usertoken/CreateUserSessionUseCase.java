@@ -27,7 +27,7 @@ public class CreateUserSessionUseCase {
      * @return the created UserSessionModel
      */
     public UserSessionModel createSession(UserAccountModel userAccount, String ipAddress, String userAgent) {
-        log.info("Creating new session for user: {} from IP: {}", userAccount.getUsername(), ipAddress);
+        log.info("Creating new session for user: {} from IP: {}", userAccount.getEmail(), ipAddress);
 
         LocalDateTime now = LocalDateTime.now();
         UserSessionModel session = UserSessionModel.builder()

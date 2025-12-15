@@ -35,5 +35,7 @@ public class TenantRegistrationModel extends AbstractEntity<UUID> {
     @Builder.Default
     private String registrationSource = "web"; // 'web', 'api', 'mobile', 'manual'
     private String notes;
+    private java.time.LocalDateTime createdAt;
+    private java.time.LocalDateTime updatedAt;
 
 }

@@ -24,20 +24,20 @@ public class ChangePasswordUseCase {
      * Changes the password for an existing user.
      * Validates the old password before allowing the change.
      *
-     * @param username    the username
+     * @param userId      the user ID
      * @param oldPassword the current plain-text password
      * @param newPassword the new plain-text password
      * @return the updated UserAccountModel
      */
-    public UserAccountModel changePassword(String username, String oldPassword, String newPassword) {
-        log.info("Changing password for user: {}", username);
+    public UserAccountModel changePassword(java.util.UUID userId, String oldPassword, String newPassword) {
+        log.info("Changing password for user: {}", userId);
 
-        UserAccountModel user = userGateway.findByUsername(username)
+        UserAccountModel user = userGateway.findById(userId)
                 .orElseThrow(UserNotFoundException::new);
 
         // Verify old password
         if (!passwordEncoder.matches(oldPassword, user.getPasswordHash())) {
-            log.warn("Old password mismatch for user: {}", username);
+            log.warn("Old password mismatch for user: {}", userId);
             throw new PasswordNotMatchException();
         }
 
@@ -45,7 +45,7 @@ public class ChangePasswordUseCase {
         user.setPasswordHash(passwordEncoder.encode(newPassword));
         UserAccountModel updatedUser = userGateway.update(user);
 
-        log.info("Password changed successfully for user: {}", username);
+        log.info("Password changed successfully for user: {}", userId);
         return updatedUser;
     }
 

@@ -11,7 +11,7 @@ public interface RolePermissionGateway {
 
     void delete(UUID roleId, UUID permissionId);
 
-    List<RolePermissionModel> findByRoleId(UUID roleId);
+    RolePermissionModel findByRoleId(UUID roleId);
 
     List<RolePermissionModel> findByPermissionId(UUID permissionId);
 

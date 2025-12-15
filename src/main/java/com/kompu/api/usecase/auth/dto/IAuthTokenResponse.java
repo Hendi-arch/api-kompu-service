@@ -31,8 +31,6 @@ public interface IAuthTokenResponse {
 
         String id();
 
-        String username();
-
         String email();
 
         String fullName();

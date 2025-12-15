@@ -1,6 +1,5 @@
 package com.kompu.api.infrastructure.config.db.schema;
 
-import java.time.Instant;
 import java.util.UUID;
 
 import org.springframework.data.annotation.CreatedDate;
@@ -51,10 +50,10 @@ public class TenantSubscriptionSchema {
     private UUID planId;
 
     @Column(nullable = false)
-    private String subscriptionStartDate; // ISO date
+    private java.time.LocalDate subscriptionStartDate; // ISO date
 
     @Column
-    private String subscriptionEndDate; // ISO date (nullable)
+    private java.time.LocalDate subscriptionEndDate; // ISO date (nullable)
 
     @Column(nullable = false, length = 50)
     @Builder.Default
@@ -65,21 +64,21 @@ public class TenantSubscriptionSchema {
     private Boolean autoRenew = true;
 
     @Column
-    private Instant trialEndsAt;
+    private java.time.LocalDateTime trialEndsAt;
 
     @CreatedDate
     @Column(nullable = false, updatable = false)
-    private Instant createdAt;
+    private java.time.LocalDateTime createdAt;
 
     @LastModifiedDate
     @Column(nullable = false)
-    private Instant updatedAt;
+    private java.time.LocalDateTime updatedAt;
 
     @Column(columnDefinition = "uuid")
-    private UUID createdBy;
+    private String createdBy;
 
     @Column(columnDefinition = "uuid")
-    private UUID updatedBy;
+    private String updatedBy;
 
     /**
      * Constructor from domain model - converts TenantSubscriptionModel to schema

@@ -20,9 +20,9 @@ public class GetUserUseCase {
                 .orElseThrow(UserNotFoundException::new);
     }
 
-    public UserAccountModel findByUsername(String username) throws UserNotFoundException {
+    public UserAccountModel findByEmail(String email) throws UserNotFoundException {
         return userGateway
-                .findByUsername(username)
+                .findByEmail(email)
                 .orElseThrow(UserNotFoundException::new);
     }
 

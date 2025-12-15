@@ -13,6 +13,12 @@ import com.kompu.api.entity.member.model.MemberModel;
 import com.kompu.api.entity.role.exception.RoleNotFoundException;
 import com.kompu.api.entity.role.gateway.RoleGateway;
 import com.kompu.api.entity.role.model.RoleModel;
+import com.kompu.api.entity.subscription.gateway.SubscriptionPlanGateway;
+import com.kompu.api.entity.subscription.gateway.TenantRegistrationGateway;
+import com.kompu.api.entity.subscription.gateway.TenantSubscriptionGateway;
+import com.kompu.api.entity.subscription.model.SubscriptionPlanModel;
+import com.kompu.api.entity.subscription.model.TenantRegistrationModel;
+import com.kompu.api.entity.subscription.model.TenantSubscriptionModel;
 import com.kompu.api.entity.tenant.gateway.TenantGateway;
 import com.kompu.api.entity.tenant.model.TenantModel;
 import com.kompu.api.entity.tenantdomain.gateway.TenantDomainGateway;
@@ -37,10 +43,10 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class SignUpUseCase {
 
-    private static final String TENANT_ROLE_ID = "10000000-0000-0000-0000-000000000002";
+    private static final String SYSTEM_ROLE_ID = "10000000-0000-0000-0000-000000000002"; // Global System Role
     private static final String PLATFORM_DOMAIN_SUFFIX = "kompu.id";
     private static final String STATUS_ACTIVE = "active";
-    private static final String EMPTY_METADATA = "{}";
+    private static final String DEFAULT_PLAN = "BASIC_MONTHLY";
     private static final int MEMBER_CODE_MAX_SEQUENCE = 99999;
     private static final long REFRESH_TOKEN_VALIDITY_DAYS = 30;
     private static final long JWT_VALIDITY_SECONDS = 604800; // 7 days
@@ -52,6 +58,9 @@ public class SignUpUseCase {
     private final MemberGateway memberGateway;
     private final TenantGateway tenantGateway;
     private final TenantDomainGateway tenantDomainGateway;
+    private final TenantRegistrationGateway tenantRegistrationGateway;
+    private final TenantSubscriptionGateway tenantSubscriptionGateway;
+    private final SubscriptionPlanGateway subscriptionPlanGateway;
     private final UserSessionGateway userSessionGateway;
     private final RefreshTokenGateway refreshTokenGateway;
     private final BCryptPasswordEncoder passwordEncoder;
@@ -66,6 +75,9 @@ public class SignUpUseCase {
             MemberGateway memberGateway,
             TenantGateway tenantGateway,
             TenantDomainGateway tenantDomainGateway,
+            TenantRegistrationGateway tenantRegistrationGateway,
+            TenantSubscriptionGateway tenantSubscriptionGateway,
+            SubscriptionPlanGateway subscriptionPlanGateway,
             UserSessionGateway userSessionGateway,
             RefreshTokenGateway refreshTokenGateway,
             BCryptPasswordEncoder passwordEncoder,
@@ -79,6 +91,9 @@ public class SignUpUseCase {
         this.memberGateway = memberGateway;
         this.tenantGateway = tenantGateway;
         this.tenantDomainGateway = tenantDomainGateway;
+        this.tenantRegistrationGateway = tenantRegistrationGateway;
+        this.tenantSubscriptionGateway = tenantSubscriptionGateway;
+        this.subscriptionPlanGateway = subscriptionPlanGateway;
         this.userSessionGateway = userSessionGateway;
         this.refreshTokenGateway = refreshTokenGateway;
         this.passwordEncoder = passwordEncoder;
@@ -88,38 +103,123 @@ public class SignUpUseCase {
 
     /**
      * Main signup flow with token generation.
-     * Creates user, role, member, tenant, domain, session, and returns auth tokens.
+     * Orchestrates creation of Tenant, Domain, Roles, Subscription, User, Member,
+     * Registration Log, and Session.
      */
     @Transactional
     public AuthTokenResponse execute(ISignUpRequest request) {
-        log.info("Starting signup for username: {}", request.username());
+        log.info("Starting signup for email: {}", request.email());
 
         validateSignUpRequest(request);
 
         UUID tenantId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID(); // Pre-generate to link entities
 
-        UserAccountModel user = createUserAccount(request, tenantId);
-        assignUserRole(user);
-        createMemberRecord(user, request);
-        createTenantForUser(request, user.getId());
+        // 1. Create Tenant
+        createTenantForUser(request, tenantId, userId);
+
+        // 2. Create Tenant Domain
         setupTenantDomain(request, tenantId);
 
+        // 4. Setup Subscription
+        setupTenantSubscription(request, tenantId, userId);
+
+        // 5. Create User Account
+        UserAccountModel user = createUserAccount(request, userId, tenantId);
+
+        // 6. Assign Admin Role to User
+        assignUserRole(user);
+
+        // 7. Create Member Record
+        createMemberRecord(user, request);
+
+        // 8. Record Registration Audit
+        recordTenantRegistration(request, user, tenantId);
+
+        // 9. Create Session & Tokens
         AuthTokenResponse response = createUserSessionWithTokens(user, tenantId);
 
-        log.info("Signup completed for user: {} with authentication tokens", user.getUsername());
+        log.info("Signup completed for user: {} with authentication tokens", user.getEmail());
         return response;
     }
 
-    private void validateSignUpRequest(@SuppressWarnings("unused") ISignUpRequest request) {
-        // TODO: Implement validation logic (e.g., check for existing username/email)
+    private void validateSignUpRequest(ISignUpRequest request) {
+        // TODO: Validate request
     }
 
-    private UserAccountModel createUserAccount(ISignUpRequest request, UUID tenantId) {
+    private void createTenantForUser(ISignUpRequest request, UUID tenantId, UUID userId) {
+        String tenantName = request.tenantName() != null ? request.tenantName().trim()
+                : request.email().split("@")[0] + "'s Organization";
+        String tenantCode = request.tenantCode() != null ? request.tenantCode().trim().toLowerCase()
+                : request.email().split("@")[0].toLowerCase();
+
+        String metadata = sharedUseCase.toJson(request.tenantMetadata());
+        String finalMetadata = (metadata != null && !metadata.isEmpty()) ? metadata : "{}";
+
+        TenantModel newTenant = TenantModel.builder()
+                .id(tenantId)
+                .name(tenantName)
+                .code(tenantCode)
+                .status(STATUS_ACTIVE)
+                .founderUserId(userId)
+                .metadata(finalMetadata)
+                .themeId(null) // Can be set later
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .createdBy(userId.toString())
+                .updatedBy(userId.toString())
+                .build();
+
+        tenantGateway.create(newTenant);
+    }
+
+    private void setupTenantDomain(ISignUpRequest request, UUID tenantId) {
+        String tenantCode = request.tenantCode() != null ? request.tenantCode()
+                : request.email().split("@")[0].toLowerCase();
+        String host = tenantCode.toLowerCase().trim() + "." + PLATFORM_DOMAIN_SUFFIX;
+
+        TenantDomainModel domain = TenantDomainModel.builder()
+                .id(UUID.randomUUID())
+                .tenantId(tenantId)
+                .host(host)
+                .primary(true)
+                .custom(false)
+                .httpsEnabled(true)
+                .tlsProvider("cloudflare")
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+
+        tenantDomainGateway.create(domain);
+    }
+
+    private void setupTenantSubscription(ISignUpRequest request, UUID tenantId, UUID userId) {
+        String planName = request.planName() != null ? request.planName() : DEFAULT_PLAN;
+
+        SubscriptionPlanModel plan = subscriptionPlanGateway.findByName(planName)
+                .orElseThrow(() -> new IllegalArgumentException("Invalid subscription plan: " + planName));
+
+        TenantSubscriptionModel subscription = TenantSubscriptionModel.builder()
+                .id(UUID.randomUUID())
+                .tenantId(tenantId)
+                .planId(plan.getId())
+                .subscriptionStartDate(LocalDate.now())
+                .status(STATUS_ACTIVE)
+                .autoRenew(true)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .createdBy(userId.toString())
+                .updatedBy(userId.toString())
+                .build();
+
+        tenantSubscriptionGateway.save(subscription);
+    }
+
+    private UserAccountModel createUserAccount(ISignUpRequest request, UUID userId, UUID tenantId) {
         return userGateway.create(
                 UserAccountModel.builder()
-                        .id(UUID.randomUUID())
+                        .id(userId)
                         .tenantId(tenantId)
-                        .username(request.username())
                         .email(request.email())
                         .passwordHash(passwordEncoder.encode(request.password()))
                         .fullName(request.fullName())
@@ -128,11 +228,15 @@ public class SignUpUseCase {
                         .isActive(true)
                         .isEmailVerified(false)
                         .isSystem(false)
+                        .createdAt(LocalDateTime.now())
+                        .updatedAt(LocalDateTime.now())
+                        .createdBy(userId.toString())
+                        .updatedBy(userId.toString())
                         .build());
     }
 
     private void assignUserRole(UserAccountModel user) {
-        RoleModel role = roleGateway.findById(UUID.fromString(TENANT_ROLE_ID))
+        RoleModel role = roleGateway.findById(UUID.fromString(SYSTEM_ROLE_ID))
                 .orElseThrow(() -> new RoleNotFoundException("Default role missing"));
 
         userRoleGateway.create(
@@ -157,7 +261,7 @@ public class SignUpUseCase {
                         .phone(user.getPhone())
                         .address(request.address())
                         .status(STATUS_ACTIVE)
-                        .metadata(EMPTY_METADATA)
+                        .metadata("{}")
                         .joinedAt(LocalDate.now())
                         .createdAt(LocalDateTime.now())
                         .updatedAt(LocalDateTime.now())
@@ -166,75 +270,24 @@ public class SignUpUseCase {
                         .build());
     }
 
-    private void createTenantForUser(ISignUpRequest request, UUID userId) {
-        String tenantName = generateTenantName(request);
-        String tenantCode = generateTenantCode(request);
-        String metadata = extractTenantMetadata(request);
-
-        // Validate input
-        if (tenantName == null || tenantName.trim().isEmpty()) {
-            throw new IllegalArgumentException("Tenant name cannot be empty");
-        }
-        if (tenantCode == null || tenantCode.trim().isEmpty()) {
-            throw new IllegalArgumentException("Tenant code cannot be empty");
-        }
-        if (userId == null) {
-            throw new IllegalArgumentException("Founder user ID cannot be null");
-        }
-
-        // Use provided metadata or default to empty JSON object
-        String finalMetadata = (metadata != null && !metadata.isEmpty()) ? metadata : "{}";
-
-        // Build the tenant model
-        TenantModel newTenant = TenantModel.builder()
-                .id(UUID.randomUUID())
-                .name(tenantName.trim())
-                .code(tenantCode.trim().toLowerCase())
-                .status(STATUS_ACTIVE)
-                .founderUserId(userId)
-                .metadata(finalMetadata)
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
-                .createdBy(userId.toString())
-                .updatedBy(userId.toString())
-                .build();
-
-        tenantGateway.create(newTenant);
+    private void recordTenantRegistration(ISignUpRequest request, UserAccountModel user, UUID tenantId) {
+        tenantRegistrationGateway.save(
+                TenantRegistrationModel.builder()
+                        .id(UUID.randomUUID())
+                        .tenantId(tenantId)
+                        .registrationType(request.registrationType())
+                        .adminUserId(user.getId())
+                        .emailUsed(request.email())
+                        .ipAddress(request.ipAddress())
+                        .userAgent(request.userAgent())
+                        .termsAcceptedAt(request.termsAcceptedAt())
+                        .privacyAcceptedAt(request.privacyAcceptedAt())
+                        .registrationSource(request.registrationSource())
+                        .createdAt(LocalDateTime.now())
+                        .updatedAt(LocalDateTime.now())
+                        .build());
     }
 
-    private void setupTenantDomain(ISignUpRequest request, UUID tenantId) {
-        String tenantCode = request.tenantCode();
-
-        if (tenantId == null) {
-            throw new IllegalArgumentException("Tenant ID cannot be null");
-        }
-        if (tenantCode == null || tenantCode.trim().isEmpty()) {
-            throw new IllegalArgumentException("Tenant code cannot be empty");
-        }
-
-        // Generate platform domain
-        String host = generatePlatformDomain(tenantCode);
-
-        // Create the primary domain model
-        TenantDomainModel domain = TenantDomainModel.builder()
-                .id(UUID.randomUUID())
-                .tenantId(tenantId)
-                .host(host)
-                .primary(true)
-                .custom(false)
-                .httpsEnabled(true)
-                .tlsProvider("cloudflare") // Default to Cloudflare for managed HTTPS
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
-                .build();
-
-        tenantDomainGateway.create(domain);
-    }
-
-    /**
-     * Creates login session and initial token pair.
-     * Returns AuthTokenResponse with access and refresh tokens.
-     */
     private AuthTokenResponse createUserSessionWithTokens(UserAccountModel user, UUID tenantId) {
         try {
             UserSessionModel session = userSessionGateway.create(
@@ -242,6 +295,8 @@ public class SignUpUseCase {
                             .id(UUID.randomUUID())
                             .tenantId(tenantId)
                             .userId(user.getId())
+                            .ipAddress(null) // Ideally passed from controller
+                            .userAgent(null) // Ideally passed from controller
                             .createdAt(LocalDateTime.now())
                             .lastActiveAt(LocalDateTime.now())
                             .isActive(true)
@@ -253,21 +308,15 @@ public class SignUpUseCase {
 
         } catch (Exception e) {
             log.warn("Token creation failed for user {}, creating response without tokens",
-                    user.getUsername(), e);
+                    user.getEmail(), e);
             return buildAuthTokenResponseWithoutTokens(user);
         }
     }
 
-    /**
-     * Creates refresh token linked to a session.
-     * Access token is generated but NOT persisted (stateless).
-     * Returns both access and refresh tokens.
-     */
     private TokenPairResponse createInitialTokenPair(UserAccountModel user, UserSessionModel session) {
-        var userDetails = myUserDetailService.loadUserByUsername(user.getUsername());
+        var userDetails = myUserDetailService.loadUserByUsername(user.getId().toString());
 
         String accessToken = jwtUtils.generateJwtToken(userDetails);
-        log.debug("Access token generated for user: {}", user.getUsername());
 
         String rawToken = UUID.randomUUID().toString();
         String tokenHash = Base64.getEncoder().encodeToString(rawToken.getBytes());
@@ -282,14 +331,9 @@ public class SignUpUseCase {
                         .expiresAt(LocalDateTime.now().plusDays(REFRESH_TOKEN_VALIDITY_DAYS))
                         .build());
 
-        log.info("Token pair created for user: {}", user.getUsername());
-
         return new TokenPairResponse(accessToken, rawToken);
     }
 
-    /**
-     * Builds AuthTokenResponse from user and tokens.
-     */
     private AuthTokenResponse buildAuthTokenResponse(UserAccountModel user, TokenPairResponse tokens) {
         return new AuthTokenResponse(
                 tokens.accessToken(),
@@ -299,9 +343,6 @@ public class SignUpUseCase {
                 buildUserAuthResponse(user));
     }
 
-    /**
-     * Builds AuthTokenResponse without tokens (fallback if token creation failed).
-     */
     private AuthTokenResponse buildAuthTokenResponseWithoutTokens(UserAccountModel user) {
         return new AuthTokenResponse(
                 null,
@@ -311,14 +352,10 @@ public class SignUpUseCase {
                 buildUserAuthResponse(user));
     }
 
-    /**
-     * Builds UserAuthResponse from UserAccountModel.
-     */
     private UserAuthResponse buildUserAuthResponse(UserAccountModel user) {
         return new UserAuthResponse(
                 user.getId().toString(),
-                user.getUsername(),
-                user.getEmail(),
+                user.getEmail(), // Use email as "username" for response
                 user.getFullName(),
                 user.getPhone(),
                 user.getAvatarUrl(),
@@ -326,28 +363,9 @@ public class SignUpUseCase {
                 user.getCreatedAt());
     }
 
-    /**
-     * Record for token pair response.
-     */
     private record TokenPairResponse(String accessToken, String refreshToken) {
     }
 
-    private String generateTenantName(ISignUpRequest request) {
-        return request.tenantName().trim();
-    }
-
-    private String generateTenantCode(ISignUpRequest request) {
-        return request.tenantCode().toLowerCase().trim();
-    }
-
-    private String extractTenantMetadata(ISignUpRequest request) {
-        return sharedUseCase.toJson(request.tenantMetadata());
-    }
-
-    /**
-     * Generates tenant-unique member code.
-     * Falls back to UUID if sequence exhausted.
-     */
     private String generateUniqueMemberCode(UUID tenantId) {
         int year = LocalDate.now().getYear();
 
@@ -357,20 +375,6 @@ public class SignUpUseCase {
                 return code;
             }
         }
-
         return "MEM" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
     }
-
-    /**
-     * Generate a platform-provided domain name from tenant code.
-     * 
-     * Format: "{tenantCode}.kompu.id"
-     * 
-     * @param tenantCode the tenant code
-     * @return the generated domain name
-     */
-    private String generatePlatformDomain(String tenantCode) {
-        return tenantCode.toLowerCase().trim() + "." + PLATFORM_DOMAIN_SUFFIX;
-    }
-
 }

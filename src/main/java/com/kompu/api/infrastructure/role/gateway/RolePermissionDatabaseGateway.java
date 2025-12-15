@@ -27,10 +27,8 @@ public class RolePermissionDatabaseGateway implements RolePermissionGateway {
     }
 
     @Override
-    public List<RolePermissionModel> findByRoleId(UUID roleId) {
-        return repository.findByRoleId(roleId).stream()
-                .map(RolePermissionSchema::toRolePermissionModel)
-                .toList();
+    public RolePermissionModel findByRoleId(UUID roleId) {
+        return repository.findByRoleId(roleId).toRolePermissionModel();
     }
 
     @Override

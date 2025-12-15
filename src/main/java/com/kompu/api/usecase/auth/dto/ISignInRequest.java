@@ -21,10 +21,10 @@ import java.util.UUID;
 public interface ISignInRequest {
 
     /**
-     * Username for authentication lookup.
+     * Email for authentication lookup.
      * Used to find user in app.users table (unique per tenant).
      */
-    String username();
+    String email();
 
     /**
      * Plain-text password to verify against password_hash.

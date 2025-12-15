@@ -42,6 +42,8 @@ public class SupplierModel extends AbstractEntity<UUID> {
     private Double rating; // 1-5 stars
     private String paymentTerms; // 'Net 30', 'COD', etc.
     private String notes;
+    @Builder.Default
+    private String metadata = "{}";
     private Instant createdAt;
     private Instant updatedAt;
     private UUID createdBy;
