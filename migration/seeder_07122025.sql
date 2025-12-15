@@ -209,3 +209,17 @@ VALUES
   (gen_random_uuid(), 'payment.currency_default', 'IDR', 'Default currency for payments', now(), now()),
   (gen_random_uuid(), 'timezone', 'Asia/Jakarta', 'Default application timezone', now(), now())
 ON CONFLICT DO NOTHING;
+
+-- 1.14: Seed initial subscription plans
+INSERT INTO app.subscription_plans (name, price, max_users, max_unit_usaha, description) VALUES
+  ('BASIC', 300000, 5, 2, 'Administrasi Koperasi dasar'),
+  ('PRO', 1000000, -1, -1, 'Semua fitur untuk koperasi profesional'),
+  ('ENTERPRISE', 0, -1, -1, 'Solusi custom dengan dukungan dedicated')
+ON CONFLICT (name) DO NOTHING;
+
+-- 1.15: Seed dashboard themes
+INSERT INTO app.dashboard_themes (name, display_name, description) VALUES
+  ('tema1', 'Tema 1', 'Theme klasik dengan warna biru'),
+  ('tema2', 'Tema 2', 'Theme modern dengan warna hijau'),
+  ('tema3', 'Tema 3', 'Theme elegan dengan warna ungu')
+ON CONFLICT (name) DO NOTHING;
