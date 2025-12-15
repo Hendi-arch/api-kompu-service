@@ -1,5 +1,6 @@
 package com.kompu.api.usecase.auth.dto;
 
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -86,7 +87,7 @@ public interface ISignUpRequest {
      * Optional tenant metadata as JSON string.
      * Stored in app.tenants.metadata JSONB field.
      */
-    String tenantMetadata();
+    Map<String, Object> tenantMetadata();
 
     // ===== Member/Employee Fields (from app.members) =====
 

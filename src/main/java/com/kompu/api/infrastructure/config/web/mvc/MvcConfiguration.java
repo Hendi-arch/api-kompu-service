@@ -4,17 +4,21 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.kompu.api.entity.appconfig.gateway.AppConfigGateway;
 import com.kompu.api.entity.user.gateway.UserGateway;
 import com.kompu.api.entity.usertoken.gateway.RefreshTokenGateway;
 import com.kompu.api.entity.usertoken.gateway.UserSessionGateway;
 import com.kompu.api.entity.usertoken.gateway.UserTokenGateway;
+import com.kompu.api.infrastructure.appconfig.gateway.AppConfigDatabaseGateway;
 import com.kompu.api.infrastructure.config.db.repository.AppConfigRepository;
 import com.kompu.api.infrastructure.config.db.repository.RefreshTokenRepository;
 import com.kompu.api.infrastructure.config.db.repository.UserRepository;
 import com.kompu.api.infrastructure.config.db.repository.UserSessionRepository;
 import com.kompu.api.infrastructure.config.db.repository.UserTokenRepository;
-import com.kompu.api.infrastructure.appconfig.gateway.AppConfigDatabaseGateway;
 import com.kompu.api.infrastructure.config.web.security.util.JwtUtils;
 import com.kompu.api.infrastructure.user.gateway.UserDatabaseGateway;
 import com.kompu.api.infrastructure.usertoken.gateway.RefreshTokenDatabaseGateway;
@@ -33,6 +37,17 @@ import com.kompu.api.usecase.usertoken.ValidateRefreshTokenUseCase;
 
 @Configuration
 public class MvcConfiguration {
+
+    @Bean
+    public ObjectMapper objectMapper() {
+        ObjectMapper objectMapper = new ObjectMapper();
+        JavaTimeModule javaTimeModule = new JavaTimeModule();
+        objectMapper.registerModule(javaTimeModule);
+        objectMapper.disable(SerializationFeature.FAIL_ON_EMPTY_BEANS);
+        objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        objectMapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+        return objectMapper;
+    }
 
     @Bean
     public RsaKeyPairUseCase rsaKeyPairUseCase(AppConfigRepository appConfigRepository) {

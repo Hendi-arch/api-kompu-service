@@ -1,5 +1,6 @@
 package com.kompu.api.infrastructure.auth.dto;
 
+import java.util.Map;
 import java.util.UUID;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -7,6 +8,7 @@ import com.kompu.api.usecase.auth.dto.ISignUpRequest;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
@@ -74,7 +76,7 @@ public record SignUpRequest(
 
         @JsonProperty("tenant_code") @Size(max = 50, message = "Tenant code must not exceed 50 characters") @Pattern(regexp = "^[a-z0-9_-]*$", message = "Tenant code can only contain lowercase letters, numbers, hyphens, and underscores") String tenantCode,
 
-        @JsonProperty("tenant_metadata") String tenantMetadata,
+        @JsonProperty("tenant_metadata") @NotEmpty Map<String, Object> tenantMetadata,
 
         // ===== Member/Employee Fields =====
         @JsonProperty("member_code") @Size(max = 50, message = "Member code must not exceed 50 characters") String memberCode,
