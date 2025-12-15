@@ -44,8 +44,8 @@ public class SignInUseCase {
 
         try {
             // 1. Validate Credentials
-            UserAccountModel user = validateUserCredentialsUseCase.validateCredentials(request.email(),
-                    request.password());
+            UserAccountModel user = validateUserCredentialsUseCase.validateCredentials(
+                    request.email(), request.password());
 
             // 2. Create Session
             UserSessionModel session = createUserSessionUseCase.createSession(

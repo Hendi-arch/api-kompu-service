@@ -1,8 +1,13 @@
 package com.kompu.api.infrastructure.auth.controller;
 
 import org.springframework.http.ResponseEntity;
+
+import java.security.Principal;
+import java.util.UUID;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -20,7 +25,6 @@ import com.kompu.api.usecase.auth.SignInUseCase;
 import com.kompu.api.usecase.auth.SignUpUseCase;
 import com.kompu.api.usecase.user.ChangePasswordUseCase;
 
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 
@@ -74,16 +78,12 @@ public class AuthController {
          * 6. Establish user session and issue JWT tokens
          * 7. Return AuthTokenResponse with tokens and user profile
          * 
-         * @param request     the signup request
-         * @param httpRequest the HTTP request (for IP and user-agent)
+         * @param request the signup request
          * @return 201 Created with authentication tokens and user profile
          */
         @PostMapping("/signup")
         public ResponseEntity<WebHttpResponse<AuthTokenResponse>> signUp(@Valid @RequestBody SignUpRequest request) {
-                log.info("Sign up request for email: {}", request.email());
-
                 AuthTokenResponse result = signUpUseCase.execute(request);
-
                 return ResponseEntity.status(HttpStatus.CREATED)
                                 .body(WebHttpResponse.ok(result));
         }
@@ -92,17 +92,7 @@ public class AuthController {
          * Sign in endpoint.
          */
         @PostMapping("/signin")
-        public ResponseEntity<WebHttpResponse<AuthTokenResponse>> signIn(@Valid @RequestBody SignInRequest request,
-                        HttpServletRequest httpRequest) {
-                // We might want to populate ip/agent if missing in request, but SignInRequest
-                // record is immutable.
-                // Assuming client sends them or we handle in UseCase via another way?
-                // Actually SignInRequest has fields for them.
-                // Let's create a new request with IP/Agent if null? No, record is immutable.
-                // For now, we rely on what's passed or updated logic in UseCase?
-                // Note: SignInUseCase takes ISignInRequest.
-                // Ideally we shouldn't rely on client sending IP/Agent in body.
-                // Let's rely on what we have.
+        public ResponseEntity<WebHttpResponse<AuthTokenResponse>> signIn(@Valid @RequestBody SignInRequest request) {
                 AuthTokenResponse result = signInUseCase.execute(request);
                 return ResponseEntity.ok(WebHttpResponse.ok(result));
         }
@@ -123,13 +113,11 @@ public class AuthController {
          * Actually, ChangePasswordUseCase needs userId.
          * We need to extract it from the authenticated context.
          */
-        @org.springframework.web.bind.annotation.PutMapping("/change-password")
+        @PutMapping("/change-password")
         public ResponseEntity<WebHttpResponse<String>> changePassword(
-                        @Valid @RequestBody ChangePasswordRequest request,
-                        java.security.Principal principal) {
+                        @Valid @RequestBody ChangePasswordRequest request, Principal principal) {
 
-                java.util.UUID userId = java.util.UUID.fromString(principal.getName()); // MyUserDetailService sets
-                                                                                        // userId as username
+                UUID userId = UUID.fromString(principal.getName());
                 changePasswordUseCase.changePassword(userId, request.oldPassword(), request.newPassword());
 
                 return ResponseEntity.ok(WebHttpResponse.ok("Password changed successfully"));
@@ -138,7 +126,7 @@ public class AuthController {
         /**
          * Forgot password endpoint.
          */
-        @org.springframework.web.bind.annotation.PutMapping("/forgot-password")
+        @PutMapping("/forgot-password")
         public ResponseEntity<WebHttpResponse<String>> forgotPassword(
                         @Valid @RequestBody ForgotPasswordRequest request) {
                 forgotPasswordUseCase.execute(request.email());
