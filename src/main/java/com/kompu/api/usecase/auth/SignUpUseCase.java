@@ -171,7 +171,7 @@ public class SignUpUseCase {
                 .status(STATUS_ACTIVE)
                 .founderUserId(userId)
                 .metadata(finalMetadata)
-                .themeId(null) // Can be set later
+                .themeId(request.themeId())
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .createdBy(userId.toString())
