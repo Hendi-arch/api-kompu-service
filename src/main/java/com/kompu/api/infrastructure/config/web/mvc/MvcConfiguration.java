@@ -2,6 +2,7 @@ package com.kompu.api.infrastructure.config.web.mvc;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 import com.kompu.api.infrastructure.shared.SharedUseCase;
@@ -11,10 +12,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.kompu.api.entity.appconfig.gateway.AppConfigGateway;
-import com.kompu.api.entity.user.gateway.UserGateway;
-import com.kompu.api.entity.usertoken.gateway.RefreshTokenGateway;
+import com.kompu.api.entity.shared.gateway.FileStorageGateway;
 import com.kompu.api.entity.usertoken.gateway.UserSessionGateway;
 import com.kompu.api.entity.usertoken.gateway.UserTokenGateway;
+import com.kompu.api.entity.user.gateway.UserGateway;
+import com.kompu.api.entity.usertoken.gateway.RefreshTokenGateway;
 import com.kompu.api.infrastructure.appconfig.gateway.AppConfigDatabaseGateway;
 import com.kompu.api.infrastructure.config.db.repository.AppConfigRepository;
 import com.kompu.api.infrastructure.config.db.repository.RefreshTokenRepository;
@@ -152,7 +154,8 @@ public class MvcConfiguration {
             RefreshTokenRepository refreshTokenRepository,
             BCryptPasswordEncoder passwordEncoder,
             JwtUtils jwtUtils,
-            com.kompu.api.infrastructure.config.web.security.service.MyUserDetailService myUserDetailService) {
+            com.kompu.api.infrastructure.config.web.security.service.MyUserDetailService myUserDetailService,
+            FileStorageGateway fileStorageGateway) {
 
         UserGateway userGateway = new UserDatabaseGateway(userRepository);
         com.kompu.api.entity.role.gateway.RoleGateway roleGateway = new com.kompu.api.infrastructure.role.gateway.RoleDatabaseGateway(
@@ -189,7 +192,8 @@ public class MvcConfiguration {
                 refreshTokenGateway,
                 passwordEncoder,
                 jwtUtils,
-                myUserDetailService);
+                myUserDetailService,
+                fileStorageGateway);
     }
 
     @Bean
@@ -231,9 +235,13 @@ public class MvcConfiguration {
     }
 
     @Bean
-    public com.kompu.api.usecase.auth.ForgotPasswordUseCase forgotPasswordUseCase(UserRepository userRepository) {
+    public com.kompu.api.usecase.auth.ForgotPasswordUseCase forgotPasswordUseCase(
+            UserRepository userRepository,
+            BCryptPasswordEncoder passwordEncoder,
+            JavaMailSender emailSender) {
+
         UserGateway userGateway = new UserDatabaseGateway(userRepository);
-        return new com.kompu.api.usecase.auth.ForgotPasswordUseCase(userGateway);
+        return new com.kompu.api.usecase.auth.ForgotPasswordUseCase(userGateway, passwordEncoder, emailSender);
     }
 
 }

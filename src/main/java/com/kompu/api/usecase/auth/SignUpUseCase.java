@@ -38,6 +38,10 @@ import com.kompu.api.infrastructure.config.web.security.util.JwtUtils;
 import com.kompu.api.infrastructure.shared.SharedUseCase;
 import com.kompu.api.usecase.auth.dto.ISignUpRequest;
 
+import com.kompu.api.entity.shared.gateway.FileStorageGateway;
+import java.util.HashMap;
+import java.util.Map;
+
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -66,6 +70,7 @@ public class SignUpUseCase {
     private final BCryptPasswordEncoder passwordEncoder;
     private final JwtUtils jwtUtils;
     private final MyUserDetailService myUserDetailService;
+    private final FileStorageGateway fileStorageGateway;
 
     public SignUpUseCase(
             SharedUseCase sharedUseCase,
@@ -82,7 +87,8 @@ public class SignUpUseCase {
             RefreshTokenGateway refreshTokenGateway,
             BCryptPasswordEncoder passwordEncoder,
             JwtUtils jwtUtils,
-            MyUserDetailService myUserDetailService) {
+            MyUserDetailService myUserDetailService,
+            FileStorageGateway fileStorageGateway) {
 
         this.sharedUseCase = sharedUseCase;
         this.userGateway = userGateway;
@@ -99,6 +105,7 @@ public class SignUpUseCase {
         this.passwordEncoder = passwordEncoder;
         this.jwtUtils = jwtUtils;
         this.myUserDetailService = myUserDetailService;
+        this.fileStorageGateway = fileStorageGateway;
     }
 
     /**
@@ -153,7 +160,8 @@ public class SignUpUseCase {
         String tenantCode = request.tenantCode() != null ? request.tenantCode().trim().toLowerCase()
                 : request.email().split("@")[0].toLowerCase();
 
-        String metadata = sharedUseCase.toJson(request.tenantMetadata());
+        Map<String, Object> processedMetadata = processTenantMetadata(request.tenantMetadata(), tenantId);
+        String metadata = sharedUseCase.toJson(processedMetadata);
         String finalMetadata = (metadata != null && !metadata.isEmpty()) ? metadata : "{}";
 
         TenantModel newTenant = TenantModel.builder()
@@ -376,5 +384,29 @@ public class SignUpUseCase {
             }
         }
         return "MEM" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+    }
+
+    private Map<String, Object> processTenantMetadata(Map<String, Object> metadata, UUID tenantId) {
+        if (metadata == null || metadata.isEmpty()) {
+            return new HashMap<>();
+        }
+
+        Map<String, Object> updatedMetadata = new HashMap<>(metadata);
+        String key = "profilePhotoBase64";
+
+        if (updatedMetadata.containsKey(key)) {
+            Object value = updatedMetadata.get(key);
+            if (value instanceof String base64Content && !((String) value).isEmpty()) {
+                // Save file and get path
+                String filePath = fileStorageGateway.saveBase64File(
+                        "profile_photo", base64Content, tenantId.toString());
+
+                if (filePath != null) {
+                    updatedMetadata.put(key, filePath);
+                }
+            }
+        }
+
+        return updatedMetadata;
     }
 }
