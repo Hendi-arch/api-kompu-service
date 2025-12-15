@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -37,17 +38,27 @@ public class MyUserDetailService implements UserDetailsService {
 		String userIdString = userAccount.getId().toString();
 		String password = userAccount.getPasswordHash();
 
-		List<String> authorities = new ArrayList<>();
-		userAccount.getRoles().forEach(role -> authorities.add("ROLE_" + role.getName()));
+		List<SimpleGrantedAuthority> authorities = new ArrayList<>();
+
+		// Add Roles
+		userAccount.getRoles().forEach(role -> {
+			authorities.add(new SimpleGrantedAuthority("ROLE_" + role.getName()));
+
+			// Add Permissions
+			if (role.getPermissions() != null) {
+				role.getPermissions()
+						.forEach(permission -> authorities.add(new SimpleGrantedAuthority(permission.getCode())));
+			}
+		});
 
 		if (authorities.isEmpty()) {
-			authorities.add("ROLE_USER");
+			authorities.add(new SimpleGrantedAuthority("ROLE_USER"));
 		}
 
 		return User
 				.withUsername(userIdString) // Principal is UserId
 				.password(password)
-				.authorities(authorities.toArray(String[]::new))
+				.authorities(authorities)
 				.build();
 	}
 

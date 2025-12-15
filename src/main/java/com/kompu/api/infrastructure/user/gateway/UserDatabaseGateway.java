@@ -34,12 +34,12 @@ public class UserDatabaseGateway implements UserGateway {
 
     @Override
     public Optional<UserAccountModel> findById(UUID id) {
-        return repository.findById(id).map(UserSchema::toUserAccountModel);
+        return repository.findByIdWithRolesAndPermissions(id).map(UserSchema::toUserAccountModel);
     }
 
     @Override
     public Optional<UserAccountModel> findByEmail(String email) {
-        return repository.findByEmail(email).map(UserSchema::toUserAccountModel);
+        return repository.findByEmailWithRolesAndPermissions(email).map(UserSchema::toUserAccountModel);
     }
 
     @Override

@@ -7,6 +7,9 @@ import org.springframework.util.StringUtils;
 import java.security.KeyPair;
 import java.util.Date;
 
+import java.util.Collection;
+import java.util.stream.Collectors;
+
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
@@ -62,8 +65,12 @@ public class JwtUtils {
     }
 
     public String generateJwtToken(UserDetails subject) {
+        Collection<?> authorities = subject.getAuthorities();
         return Jwts.builder()
                 .subject(subject.getUsername())
+                .claim("authorities", authorities.stream()
+                        .map(item -> item.toString())
+                        .collect(Collectors.toList()))
                 .issuedAt(new Date(System.currentTimeMillis()))
                 .expiration(new Date(System.currentTimeMillis() + 7 * 24 * 60 * 60 * 1000))
                 .signWith(rsaKeyPair.getPrivate(), SIG.RS256)

@@ -19,8 +19,11 @@ import com.kompu.api.infrastructure.config.web.security.service.MyUserDetailServ
 
 import static org.springframework.security.config.Customizer.withDefaults;
 
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 public class AppSecurityConfigurer {
 
 	// Define final fields and inject them through constructor
